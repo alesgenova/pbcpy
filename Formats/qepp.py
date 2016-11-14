@@ -37,15 +37,15 @@ class PP(object):
                 for ilat in range(3):
                     linesplt = filepp.readline().split()
                     at[:, ilat] = np.asarray(linesplt, dtype=float)
-                    #at[:,i] = (float(x) for x in filepp.readline().split())
+                    # at[:,i] = (float(x) for x in filepp.readline().split())
                 at *= celldm[0]
             else:
                 at = self.celldm2at(ibrav, celldm)
             grid = Grid(at, nrx, units='Bohr')
 
             # gcutm, dual, ecut, plot_num
-            #gcutm, dual, ecut, plot_num = (float(x) for x in filepp.readline().split())
-            #plot_num = int(plot_num)
+            # gcutm, dual, ecut, plot_num = (float(x) for x in filepp.readline().split())
+            # plot_num = int(plot_num)
             filepp.readline()
             gcutm, dual, ecut, plot_num = 1., 1., 1., 0
             self.cutoffvars['ibrav'] = ibrav
@@ -62,20 +62,20 @@ class PP(object):
                 atm.append(linesplt[1])
                 zv[ity] = float(linesplt[2])
             # tau
-            #tau = np.zeros((nat,3), dtype=float)
-            #tau = np.zeros(3, dtype=float)
-            #ityp = np.zeros(nat, dtype=int)
+            # tau = np.zeros((nat,3), dtype=float)
+            # tau = np.zeros(3, dtype=float)
+            # ityp = np.zeros(nat, dtype=int)
             atoms = []
             for iat in range(nat):
                 linesplt = filepp.readline().split()
-                #tau[iat,:] = np.asarray(linesplt[1:4],dtype=float)
-                #ityp[iat] = int(linesplt[4]) -1
+                # tau[iat,:] = np.asarray(linesplt[1:4],dtype=float)
+                # ityp[iat] = int(linesplt[4]) -1
                 tau = np.asarray(linesplt[1:4], dtype=float)
                 ity = int(linesplt[4]) - 1
                 atoms.append(Atom(Zval=zv[ity], label=atm[
                              ity], pos=tau * celldm[0], cell=grid))
 
-            #self.atoms = Ions( nat, ntyp, atm, zv, tau*celldm[0], ityp, self.grid)
+            # self.atoms = Ions( nat, ntyp, atm, zv, tau*celldm[0], ityp, self.grid)
 
             # plot
             igrid = 0
@@ -100,13 +100,13 @@ class PP(object):
             # filepp.write(self.title)
 
             # nr1x, nr2x, nr3x, nr1, nr2, nr3, nat, ntyp
-            #mywrite(filepp, self.cell.nrx,False)
-            #mywrite(filepp, self.cell.nr,False)
-            #mywrite(filepp, [len(self.atoms.ions), len(self.atoms.species)],False)
+            # mywrite(filepp, self.cell.nrx,False)
+            # mywrite(filepp, self.cell.nr,False)
+            # mywrite(filepp, [len(self.atoms.ions), len(self.atoms.species)],False)
 
             # ibrav, celldm
-            #mywrite(filepp, self.cell.ibrav,True)
-            #mywrite(filepp, self.cell.celldm,False)
+            # mywrite(filepp, self.cell.ibrav,True)
+            # mywrite(filepp, self.cell.celldm,False)
 
             # at(:,i) three times
             # if self.cell.ibrav == 0 :
@@ -114,10 +114,10 @@ class PP(object):
             #        mywrite(filepp,self.cell.at[:,ilat],True)
 
             # gcutm, dual, ecut, plot_num
-            #mywrite(filepp, self.cutoffvars['gcutm'],True)
-            #mywrite(filepp, self.cutoffvars['dual'],False)
-            #mywrite(filepp, self.cutoffvars['ecut'],False)
-            #mywrite(filepp, self.plot.plot_num,False)
+            # mywrite(filepp, self.cutoffvars['gcutm'],True)
+            # mywrite(filepp, self.cutoffvars['dual'],False)
+            # mywrite(filepp, self.cutoffvars['ecut'],False)
+            # mywrite(filepp, self.plot.plot_num,False)
 
             # ntyp
             # for ity, spc in enumerate(self.atoms.species):

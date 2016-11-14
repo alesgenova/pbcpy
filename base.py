@@ -64,9 +64,10 @@ class Coord(np.ndarray):
 
     def __add__(self, other):
         """
-        sum the coordinates of two Coord objects (can seamlessly mix Cris and Cart) and return a new Coord with the same
-        ctype as the first Coord object (self).
-        If ctype_out is specified, the Coord object in output is converted to it
+        sum the coordinates of two Coord objects (can seamlessly mix Cris and
+        Cart) and return a new Coord with the same ctype as the first Coord
+        object (self).
+        If ctype_out is specified, the output Coord object is converted to it.
         """
         if isinstance(other, Coord):
             other = other.to_ctype(self.ctype)
@@ -75,9 +76,10 @@ class Coord(np.ndarray):
 
     def add(self, other, ctype_out=None):
         """
-        sum the coordinates of two Coord objects (can seamlessly mix Cris and Cart) and return a new Coord with the same
-        ctype as the first Coord object (self).
-        If ctype_out is specified, the Coord object in output is converted to it
+        sum the coordinates of two Coord objects (can seamlessly mix Cris and
+        Cart) and return a new Coord with the same ctype as the first Coord
+        object (self).
+        If ctype_out is specified, the output Coord object is converted to it.
         """
         if ctype_out is None:
             return self + other.to_ctype(self.ctype)
@@ -108,7 +110,7 @@ class Coord(np.ndarray):
         ds12 = other.to_crys() - self.to_crys()
         for i in range(3):
             ds12[i] = ds12[i] - round(ds12[i])
-        #dr12 = s2r(ds12, cell)
+        # dr12 = s2r(ds12, cell)
         return ds12.to_ctype(self.ctype)
 
     def lenght(self):
@@ -117,19 +119,21 @@ class Coord(np.ndarray):
     def conv(self, new_units):
         '''
         returns a Coord obj with new_units as its units.
-        This is accomplished by first changing the self.cell and then changing the array coordinates accordingly.
+        This is accomplished by first changing the self.cell and then
+        changing the array coordinates accordingly.
         '''
-        #new_at = self.cell.at.copy()
+        # new_at = self.cell.at.copy()
         new_at = self.cell.at.copy()
         new_at *= len_conv[self.cell.units][new_units]
-        #new_cell = Cell(new_at,units=new_units)
-        return Coord(self.to_crys(), Cell(new_at, units=new_units), ctype=Coord.crys_names[0]).to_ctype(self.ctype)
+        # new_cell = Cell(new_at,units=new_units)
+        return Coord(self.to_crys(), Cell(new_at, units=new_units),
+                     ctype=Coord.crys_names[0]).to_ctype(self.ctype)
 
     def same_cell_as(self, other):
         """
-        checks if the unit cell of two Coord objects is the same, regardless of the units.
+        checks if the unit cell of two Coord objects is the same,
+        regardless of the units.
         """
-
         pass
 
 
@@ -148,8 +152,8 @@ class pbcarray(np.ndarray):
         if obj is None:
             return
 
-        #self.cell = getattr(obj, 'cell', None)
-        #self.ctype = getattr(obj, 'ctype', None)
+        # self.cell = getattr(obj, 'cell', None)
+        # self.ctype = getattr(obj, 'ctype', None)
         # We do not need to return anything
 
     def __getitem__(self, sli_in):
@@ -250,7 +254,7 @@ def r2s(pos, cell):
     # Vectorize the code: the right most axis is where the coordinates are
     pos = np.asarray(pos)
     xyzs = np.tensordot(cell.bg, pos.T, axes=([-1], 0)).T
-    #xyzs = np.dot(cell.bg, pos)
+    # xyzs = np.dot(cell.bg, pos)
     return xyzs
 
 

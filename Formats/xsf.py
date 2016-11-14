@@ -66,6 +66,6 @@ def mywrite(fileobj, iterable, newline=False):
     if isinstance(iterable, (np.ndarray, list, tuple)):
         for ele in iterable:
             mywrite(fileobj, ele)
-            #fileobj.write(str(ele)+'    ')
+            # fileobj.write(str(ele)+'    ')
     else:
         fileobj.write(str(iterable) + '    ')

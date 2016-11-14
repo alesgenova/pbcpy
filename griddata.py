@@ -67,7 +67,10 @@ class Plot(object):
         return
 
     def get_3dinterpolation(self, nr_new):
-        '''Interpolates the values of the plot on a cell with a different number of points, and returns a new plot object.'''
+        """
+        Interpolates the values of the plot on a cell with a different number
+        of points, and returns a new plot object.
+        """
         if self.spl_coeffs is None:
             self.calc_spline()
         x = np.linspace(0, 1, nr_new[0], endpoint=False) * \
@@ -90,8 +93,9 @@ class Plot(object):
             # restrict crystal coordinates to [0,1)
             points[:, ipol] = (points[:, ipol] % 1) * \
                 self.grid.nr[ipol] + self.spl_order
-        values = ndimage.map_coordinates(
-            self.spl_coeffs, [points[:, 0], points[:, 1], points[:, 2]], mode='wrap')
+        values = ndimage.map_coordinates(self.spl_coeffs, [points[:, 0],
+                                         points[:, 1], points[:, 2]],
+                                         mode='wrap')
         return values
 
     def get_values_1darray(self, pad=0, order='F'):
@@ -105,13 +109,16 @@ class Plot(object):
         return np.reshape(vals, nnr, order=order)
 
     def get_plotcut(self, x0, r0, r1=None, r2=None, nr=10):
-        '''general routine to get the arbitrary cuts of a Plot object in 1,2 or 3 dimensions. spline interpolation will be used.
+        """
+        general routine to get the arbitrary cuts of a Plot object in 1,2,
+        or 3 dimensions. spline interpolation will be used.
             x0 = origin of the cut
             r0 = first vector (always required)
             r1 = second vector (required for 2D and 3D cuts)
             r2 = third vector (required for 3D cuts)
             nr[i] = number points to discretize each direction ; i = 0,1,2
-            x0, r0, r1, r2 are all in crystal coordinates'''
+        x0, r0, r1, r2 are all in crystal coordinates
+        """
 
         ndim = 1
 
