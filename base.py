@@ -1,3 +1,20 @@
+'''
+    pbcpy is a python package to seamlessly tackle periodic boundary conditions.
+
+    Copyright (C) 2016 Alessandro Genova (ales.genova@gmail.com).
+    
+    pbcpy is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    pbcpy is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with pbcpy.  If not, see <http://www.gnu.org/licenses/>.
+'''
+
 import numpy as np
 from .constants import LEN_CONV
 
@@ -131,6 +148,16 @@ class Coord(np.ndarray):
         # new_cell = Cell(new_at,units=new_units)
         return Coord(self.to_crys(), Cell(new_at, units=new_units),
                      ctype=Coord.crys_names[0]).to_ctype(self.ctype)
+
+    def change_of_basis(self, new_cell, new_origin=[0.,0.,0.], fill_space = False):
+        '''
+        Perform a change of basis on the coordinates by providing new lattice vectors
+        (i.e. a new new cell is associated)
+        '''
+        M = np.dot(self.cell.bg, new_cell.bg)
+        P = np.linalg.inv(M)
+        pos = np.dot(P, self.to_crys())
+        return Coord(pos, cell = new_cell)
 
     def same_cell_as(self, other):
         """
