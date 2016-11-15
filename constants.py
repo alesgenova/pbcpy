@@ -2,7 +2,7 @@
     pbcpy is a python package to seamlessly tackle periodic boundary conditions.
 
     Copyright (C) 2016 Alessandro Genova (ales.genova@gmail.com).
-    
+
     pbcpy is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or

@@ -2,7 +2,7 @@
     pbcpy is a python package to seamlessly tackle periodic boundary conditions.
 
     Copyright (C) 2016 Alessandro Genova (ales.genova@gmail.com).
-    
+
     pbcpy is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -51,20 +51,27 @@ class Cell(object):
 
         return True
 
-    def set_grid(self, nr):
-
-        pass
+    def conv(self, units):
+        """
+        Conver the length units of the cell, and return a new object.
+        """
+        if self.units == units:
+            return self
+        else:
+            return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
 
 
 class Coord(np.ndarray):
     cart_names = ['Cartesian', 'Cart', 'Ca', 'R']
     crys_names = ['Crystal', 'Crys', 'Cr', 'S']
 
-    def __new__(cls, pos, cell, ctype='Cartesian'):
+    def __new__(cls, pos, cell=None, ctype='Cartesian'):
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
         obj = np.asarray(pos, dtype=float).view(cls)
         # add the new attribute to the created instance
+        if cell is None:
+            obj.cell = Cell(np.identity(3))
         obj.cell = cell
         obj.ctype = ctype
         # Finally, we must return the newly created object:
@@ -149,15 +156,16 @@ class Coord(np.ndarray):
         return Coord(self.to_crys(), Cell(new_at, units=new_units),
                      ctype=Coord.crys_names[0]).to_ctype(self.ctype)
 
-    def change_of_basis(self, new_cell, new_origin=[0.,0.,0.], fill_space = False):
+    def change_of_basis(self, new_cell, new_origin=[0., 0., 0.],
+                        fill_space=False):
         '''
-        Perform a change of basis on the coordinates by providing new lattice vectors
-        (i.e. a new new cell is associated)
+        Perform a change of basis on the coordinates by providing new lattice
+        vectors (i.e. a new new cell is associated)
         '''
         M = np.dot(self.cell.bg, new_cell.bg)
         P = np.linalg.inv(M)
         pos = np.dot(P, self.to_crys())
-        return Coord(pos, cell = new_cell)
+        return Coord(pos, cell=new_cell)
 
     def same_cell_as(self, other):
         """
