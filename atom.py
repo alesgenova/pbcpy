@@ -1,4 +1,4 @@
-from pbc.base import Coord
+from .base import Coord
 
 
 class Atom(object):

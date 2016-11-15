@@ -1,5 +1,5 @@
 import numpy as np
-from pbc.constants import len_conv
+from ..constants import LEN_CONV
 
 
 class XSF(object):
@@ -26,7 +26,7 @@ class XSF(object):
 
             mywrite(fileout, "PRIMVEC", True)
             for ilat in range(3):
-                latt = cell.at[:, ilat] * len_conv[cell.units][xsf_units]
+                latt = cell.at[:, ilat] * LEN_CONV[cell.units][xsf_units]
                 mywrite(fileout, latt, True)
 
             mywrite(fileout, "PRIMCOORD", True)
@@ -45,7 +45,7 @@ class XSF(object):
                     0] + 1, plot.grid.nr[1] + 1, plot.grid.nr[2] + 1), True)
             mywrite(fileout, (0., 0., 0.), True)
             for ilat in range(3):
-                latt = cell.at[:, ilat] * len_conv[cell.units][xsf_units]
+                latt = cell.at[:, ilat] * LEN_CONV[cell.units][xsf_units]
                 mywrite(fileout, latt, True)
 
             nlines = nnr // val_per_line

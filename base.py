@@ -1,5 +1,5 @@
 import numpy as np
-from pbc.constants import len_conv
+from .constants import LEN_CONV
 
 
 class Cell(object):
@@ -22,8 +22,8 @@ class Cell(object):
 
         common_unit = 'Bohr'  # arbitrary
         eps = 1e-3
-        conv0 = len_conv[self.units][common_unit]
-        conv1 = len_conv[other.units][common_unit]
+        conv0 = LEN_CONV[self.units][common_unit]
+        conv1 = LEN_CONV[other.units][common_unit]
 
         for ilat in range(3):
             lat0 = self.at[:, ilat] * conv0
@@ -113,6 +113,9 @@ class Coord(np.ndarray):
         # dr12 = s2r(ds12, cell)
         return ds12.to_ctype(self.ctype)
 
+    def dd_mic(self, other):
+        return self.d_mic(other).lenght()
+
     def lenght(self):
         return np.sqrt(np.dot(self.to_cart(), self.to_cart()))
 
@@ -124,7 +127,7 @@ class Coord(np.ndarray):
         '''
         # new_at = self.cell.at.copy()
         new_at = self.cell.at.copy()
-        new_at *= len_conv[self.cell.units][new_units]
+        new_at *= LEN_CONV[self.cell.units][new_units]
         # new_cell = Cell(new_at,units=new_units)
         return Coord(self.to_crys(), Cell(new_at, units=new_units),
                      ctype=Coord.crys_names[0]).to_ctype(self.ctype)

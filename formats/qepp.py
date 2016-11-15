@@ -1,8 +1,8 @@
 import numpy as np
-from pbc.griddata import Grid, Plot
-from pbc.system import System
-from pbc.atom import Atom
-from pbc.system import System
+from ..griddata import Grid, Plot
+from ..system import System
+from ..atom import Atom
+from ..system import System
 
 
 class PP(object):

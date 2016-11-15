@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import ndimage
-from pbc.base import Cell, Coord
+from .base import Cell, Coord
 
 
 class Grid(Cell):
@@ -38,9 +38,8 @@ class Grid(Cell):
                     for point in ref_points:
                         point = Coord(point, self)
                         # print(point)
-                        dd = self.r[i, j, k].d_mic(point).lenght()
+                        dd = self.r[i, j, k].dd_mic(point)
                         if dd < cutr:
-
                             mask[i, j, k] = 0.
         return mask
 
