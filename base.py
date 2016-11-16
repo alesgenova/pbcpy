@@ -37,8 +37,6 @@ class Cell(object):
     """
     def __init__(self, at, units='Bohr'):
         """
-        Initialize a Cell object
-
         Parameters
         ----------
         at : array_like[3,3]
@@ -123,9 +121,6 @@ class Coord(np.ndarray):
 
     def __new__(cls, pos, cell=None, ctype='Cartesian', units='Bohr'):
         """
-        Initialize a Coord object.
-
-
         Parameters
         ----------
         pos : array_like[..., 3]
@@ -342,96 +337,84 @@ class pbcarray(np.ndarray):
         # self.ctype = getattr(obj, 'ctype', None)
         # We do not need to return anything
 
-    def __getitem__(self, sli_in):
+    def __getitem__(self, index):
+        """
+        All the possible slices with pbcarray
 
-        # the slice in input can as well be an integer, or a tuple of
-        # integers/slices with length smaller than the rank of the array.
-        print(sli_in)
-        noneslice = slice(None, None, None)
-        shp = self.shape
-        rank = len(shp)
-        noneslicelist = [noneslice] * rank
+        """
+        shape_ = self.shape
+        # Reconstruct the total slice if incomplete indexes or ellipses are provided.
+        if not isinstance(index, tuple):
+            index = (index,)
+        slices = []
+        idx_len, rank = len(index), len(shape_)
 
-        sli = []
+        for slice_ in index:
+            if slice_ is Ellipsis:
+                slices.extend([slice(None)] * (rank+1-idx_len))
+            elif isinstance(slice_, slice):
+                slices.append(slice_)
+            elif isinstance(slice_, (int)):
+                slices.append(slice(slice_,slice_+1))
 
-        try:
-            ninput = len(sli_in)
-            if ninput > rank:
-                print('Array dim mismatch')
-                return
+        sli_len = len(slices)
+        if sli_len > rank:
+            msg = 'too many indices for array'
+            raise IndexError(msg)
+        elif sli_len < rank:
+            slices.extend([slice(None)]*(rank-sli_len))
 
-        except:
-
-            ninput = 1
-            sli_in = (sli_in,)
-
-        sli = noneslicelist.copy()
-
-        for idim in range(ninput):
-            sli[idim] = sli_in[idim]
-
+        # Now actually slice with pbc along each direction.
         newarr = np.asarray(self)
+        for idim, sli in enumerate(slices):
+            start = sli.start
+            stop = sli.stop
+            step = sli.step
+            step_ = sli.step
 
-        for isl, sl in enumerate(sli):
+            if step is None:
+                step = 1
 
-            if isinstance(sl, int):
-                slice_tup = noneslicelist.copy()
-                slice_tup[isl] = sl
-                slice_tup = tuple(slice_tup)
-                newarr = newarr[slice_tup]
+            if step > 0:
+                if start is None:
+                    start = 0
+                if stop is None:
+                    stop = shape_[idim]
 
-            elif isinstance(sl, slice):
+            elif step < 0:
+                if start is None:
+                    start = shape_[idim]
+                if stop is None:
+                    stop = 0
 
-                start = sl.start
-                stop = sl.stop
-                step = sl.step
+            lower = min(start, stop)
+            upper = max(start, stop)
+            span = upper - lower
 
-                step_ = sl.step
+            # If the beginning of the slice does not coincide with a grid point
+            # equivalent to 0, roll the array along that axis until it does
+            roll = 0
+            if lower % shape_[idim] != 0:
+                roll = -lower % shape_[idim]
+                newarr = np.roll(newarr, roll, axis=idim)
 
-                if step is None:
-                    step = 1
+            # If the span of the slice extends beyond the boundaries of the array,
+            # pad the array along that axis until we have enough elements.
+            if span > shape_[idim]:
+                pad_tup = [(0, 0)] * rank
+                pad_tup[idim] = (0, span - shape_[idim])
+                newarr = np.pad(newarr, pad_tup, mode='wrap')
 
-                if step > 0:
+            # And now get the slice of the array allong the axis.
+            slice_tup = [slice(None)]*rank
+            if step < 0:
+                slice_tup[idim] = slice(
+                    start + roll, stop + roll, step_)
+            else:
+                slice_tup[idim] = slice(None, span, step)
 
-                    if start is None:
-                        start = 0
-
-                    if stop is None:
-                        stop = shp[isl]
-
-                elif step < 0:
-
-                    if start is None:
-                        start = shp[isl]
-
-                    if stop is None:
-                        stop = 0
-
-                lower = min(start, stop)
-                upper = max(start, stop)
-                span = upper - lower
-
-                roll = 0
-
-                if lower % shp[isl] != 0:
-                    roll = -lower % shp[isl]
-                    newarr = np.roll(newarr, roll, axis=isl)
-
-                if span > shp[isl]:
-                    pad_tup = [(0, 0)] * rank
-                    pad_tup[isl] = (0, span - shp[isl])
-                    newarr = np.pad(newarr, pad_tup, mode='wrap')
-
-                if True:
-                    slice_tup = noneslicelist.copy()
-                    if step < 0:
-                        slice_tup[isl] = slice(
-                            start + roll, stop + roll, step_)
-                    else:
-                        slice_tup[isl] = slice(None, span, step)
-
-                    slice_tup = tuple(slice_tup)
-                    newarr = newarr[slice_tup]
+            slice_tup = tuple(slice_tup)
+            newarr = newarr[slice_tup]
 
         return newarr
 
