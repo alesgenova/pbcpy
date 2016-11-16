@@ -1,4 +1,4 @@
-'''
+"""
     pbcpy is a python package to seamlessly tackle periodic boundary conditions.
 
     Copyright (C) 2016 Alessandro Genova (ales.genova@gmail.com).
@@ -13,15 +13,40 @@
     GNU General Public License for more details.
     You should have received a copy of the GNU General Public License
     along with pbcpy.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import numpy as np
 from .constants import LEN_CONV
 
 
 class Cell(object):
+    """
+    Definition of the lattice of a system.
 
+    Attributes
+    ----------
+    units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+        length units of the lattice vectors.
+    at : array_like[3,3]
+        matrix containing the direct lattice vectors (as its colums)
+    bg : array_like[3,3]
+        matrix containing the reciprocal lattice vectors (i.e. inverse of at)
+    omega : float
+        volume of the cell in units**3
+
+    """
     def __init__(self, at, units='Bohr'):
+        """
+        Initialize a Cell object
+
+        Parameters
+        ----------
+        at : array_like[3,3]
+            matrix containing the direct lattice vectors (as its colums)
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+            length units of the lattice vectors.
+
+        """
         self.at = np.asarray(at)
         self.units = units
         self.bg = np.linalg.inv(at)
@@ -30,21 +55,31 @@ class Cell(object):
 
     def __eq__(self, other):
         """
-        method to expose == operator to Cell object.
-        It is general and works for cells with different units.
+        Implement the == operator in the Cell class.
+
+        The method is general and works even if the two cells use different
+        length units.
+
+        Parameters
+        ----------
+        other : Cell
+            another cell object we are comparing to
+
+        Returns
+        -------
+        out : Bool
+
         """
         if self is other:
             # if they refer to the same object, just cut to True
             return True
 
-        common_unit = 'Bohr'  # arbitrary
-        eps = 1e-3
-        conv0 = LEN_CONV[self.units][common_unit]
-        conv1 = LEN_CONV[other.units][common_unit]
+        eps = 1e-4
+        conv = LEN_CONV[other.units][self.units]
 
         for ilat in range(3):
-            lat0 = self.at[:, ilat] * conv0
-            lat1 = other.at[:, ilat] * conv1
+            lat0 = self.at[:, ilat]
+            lat1 = other.at[:, ilat] * conv
             overlap = np.dot(lat0, lat1) / np.dot(lat0, lat0)
             if abs(1 - overlap) > eps:
                 return False
@@ -53,7 +88,17 @@ class Cell(object):
 
     def conv(self, units):
         """
-        Conver the length units of the cell, and return a new object.
+        Convert the length units of the cell, and return a new object.
+
+        Parameters
+        ----------
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}
+            The desired length units of the Cell in output.
+
+        Returns
+        -------
+        out : Cell
+            New cell object with changed length unit.
         """
         if self.units == units:
             return self
@@ -62,19 +107,49 @@ class Cell(object):
 
 
 class Coord(np.ndarray):
+    """
+    Array representing coordinates in periodic boundary conditions.
+
+    Attributes
+    ----------
+    cell : Cell
+        The unit cell associated to the coordinates.
+    ctype : {'Cartesian', 'Crystal'}
+        Describes whether the array contains crystal or cartesian coordinates.
+
+    """
     cart_names = ['Cartesian', 'Cart', 'Ca', 'R']
     crys_names = ['Crystal', 'Crys', 'Cr', 'S']
 
-    def __new__(cls, pos, cell=None, ctype='Cartesian'):
+    def __new__(cls, pos, cell=None, ctype='Cartesian', units='Bohr'):
+        """
+        Initialize a Coord object.
+
+
+        Parameters
+        ----------
+        pos : array_like[..., 3]
+            Array containing a single or a set of 3D coordinates.
+        cell : Cell
+            The unit cell to be associated to the coordinates.
+        ctype : {'Cartesian', 'Crystal'}
+            matrix containing the direct lattice vectors (as its colums)
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+            If cell is missing, it specifies the units of the versors.
+            Overridden by cell.units otherwise.
+
+        """
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
         obj = np.asarray(pos, dtype=float).view(cls)
         # add the new attribute to the created instance
         if cell is None:
-            obj.cell = Cell(np.identity(3))
-        obj.cell = cell
+            # If no cell in input, coordinates are purely cartesian,
+            # i.e. the lattice vectors are three orthogonal versors i, j, k.
+            obj.cell = Cell(np.identity(3), units=units)
+        else:
+            obj.cell = cell
         obj.ctype = ctype
-        # Finally, we must return the newly created object:
         return obj
 
     def __array_finalize__(self, obj):
@@ -88,29 +163,36 @@ class Coord(np.ndarray):
 
     def __add__(self, other):
         """
-        sum the coordinates of two Coord objects (can seamlessly mix Cris and
-        Cart) and return a new Coord with the same ctype as the first Coord
-        object (self).
-        If ctype_out is specified, the output Coord object is converted to it.
+        Implement the '+' operator for the Coord class.
+
+        Parameters
+        ----------
+        other : Coord | float | int | array_like
+            What is to be summed to self.
+
+        Returns
+        -------
+        out : Coord
+            The sum of self and other.
         """
-        if isinstance(other, Coord):
-            other = other.to_ctype(self.ctype)
+        if isinstance(other, type(self)):
+        # if isinstance(other, Coord):
+            if self.cell == other.cell:
+                other = other.conv(self.cell.units).to_ctype(self.ctype)
+            else:
+                return Exception
 
         return np.ndarray.__add__(self, other)
 
-    def add(self, other, ctype_out=None):
-        """
-        sum the coordinates of two Coord objects (can seamlessly mix Cris and
-        Cart) and return a new Coord with the same ctype as the first Coord
-        object (self).
-        If ctype_out is specified, the output Coord object is converted to it.
-        """
-        if ctype_out is None:
-            return self + other.to_ctype(self.ctype)
-        else:
-            return self.to_ctype(ctype_out) + other.to_ctype(ctype_out)
-
     def to_cart(self):
+        """
+        Converts the coordinates to Cartesian and return a new Coord object.
+
+        Returns
+        -------
+        out : Coord
+            New Coord object insured to have ctype='Cartesian'.
+        """
         if self.ctype in Coord.cart_names:
             return self
         else:
@@ -118,6 +200,14 @@ class Coord(np.ndarray):
             return Coord(pos=pos, cell=self.cell, ctype=Coord.cart_names[0])
 
     def to_crys(self):
+        """
+        Converts the coordinates to Crystal and return a new Coord object.
+
+        Returns
+        -------
+        out : Coord
+            New Coord object insured to have ctype='Crystal'.
+        """
         if self.ctype in Coord.crys_names:
             return self
         else:
@@ -125,12 +215,37 @@ class Coord(np.ndarray):
             return Coord(pos=pos, cell=self.cell, ctype=Coord.crys_names[0])
 
     def to_ctype(self, ctype):
+        """
+        Converts the coordinates to the desired ctype and return a new object.
+
+        Parameters
+        ----------
+        ctype : {'Cartesian', 'Crystal'}
+            ctype to which the coordinates are converted.
+        Returns
+        -------
+        out : Coord
+            New Coord object insured to have ctype=ctype.
+        """
         if ctype in Coord.crys_names:
             return self.to_crys()
         elif ctype in Coord.cart_names:
             return self.to_cart()
 
     def d_mic(self, other):
+        """
+        Calculate the vector connecting two Coord using the minimum image convention (MIC).
+
+        Parameters
+        ----------
+        other : Coord
+
+        Returns
+        -------
+        out : Coord
+            shortest vector connecting self and other with the same ctype as self.
+
+        """
         ds12 = other.to_crys() - self.to_crys()
         for i in range(3):
             ds12[i] = ds12[i] - round(ds12[i])
@@ -138,17 +253,46 @@ class Coord(np.ndarray):
         return ds12.to_ctype(self.ctype)
 
     def dd_mic(self, other):
+        """
+        Calculate the distance between two Coord using the minimum image convention (MIC).
+
+        Parameters
+        ----------
+        other : Coord
+
+        Returns
+        -------
+        out : float
+            the minimum distance between self and other from applying the MIC.
+
+        """
         return self.d_mic(other).lenght()
 
     def lenght(self):
+        """
+        Calculate the legth of a Coord array.
+
+        Returns
+        -------
+        out : float
+            The lenght of the Coord array, in the same units as self.cell.
+
+        """
         return np.sqrt(np.dot(self.to_cart(), self.to_cart()))
 
     def conv(self, new_units):
-        '''
-        returns a Coord obj with new_units as its units.
-        This is accomplished by first changing the self.cell and then
-        changing the array coordinates accordingly.
-        '''
+        """
+        Converts the units of the Coord array.
+
+        Parameters
+        ----------
+        new_units : {'Bohr', 'Angstrom', 'nm', 'm'}
+
+        Returns
+        -------
+        out : Coord
+
+        """
         # new_at = self.cell.at.copy()
         new_at = self.cell.at.copy()
         new_at *= LEN_CONV[self.cell.units][new_units]
@@ -156,23 +300,27 @@ class Coord(np.ndarray):
         return Coord(self.to_crys(), Cell(new_at, units=new_units),
                      ctype=Coord.crys_names[0]).to_ctype(self.ctype)
 
-    def change_of_basis(self, new_cell, new_origin=[0., 0., 0.],
-                        fill_space=False):
-        '''
-        Perform a change of basis on the coordinates by providing new lattice
-        vectors (i.e. a new new cell is associated)
-        '''
+    def change_of_basis(self, new_cell, new_origin=np.array([0., 0., 0.])):
+        """
+        Perform a change of basis on the coordinates.
+
+        Parameters
+        ----------
+        new_cell : Cell
+            Cell representing the new coordinate system (i.e. the new basis)
+        new_origin : array_like[3]
+            Origin of the new coordinate system.
+
+        Returns
+        -------
+        out : Coord
+            Coord in the new basis.
+
+        """
         M = np.dot(self.cell.bg, new_cell.bg)
         P = np.linalg.inv(M)
-        pos = np.dot(P, self.to_crys())
-        return Coord(pos, cell=new_cell)
-
-    def same_cell_as(self, other):
-        """
-        checks if the unit cell of two Coord objects is the same,
-        regardless of the units.
-        """
-        pass
+        new_pos = np.dot(P, self.to_crys())
+        return Coord(new_pos, cell=new_cell)
 
 
 class pbcarray(np.ndarray):
