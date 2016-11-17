@@ -343,30 +343,15 @@ class pbcarray(np.ndarray):
 
         """
         shape_ = self.shape
-        # Reconstruct the total slice if incomplete indexes or ellipses are provided.
-        if not isinstance(index, tuple):
-            index = (index,)
-        slices = []
-        idx_len, rank = len(index), len(shape_)
+        rank = len(shape_)
 
-        for slice_ in index:
-            if slice_ is Ellipsis:
-                slices.extend([slice(None)] * (rank+1-idx_len))
-            elif isinstance(slice_, slice):
-                slices.append(slice_)
-            elif isinstance(slice_, (int)):
-                slices.append(slice(slice_,slice_+1))
+        slices = self._reconstruct_full_slices(shape_, index)
 
-        sli_len = len(slices)
-        if sli_len > rank:
-            msg = 'too many indices for array'
-            raise IndexError(msg)
-        elif sli_len < rank:
-            slices.extend([slice(None)]*(rank-sli_len))
+        # slices = self._order_slices(shape_, slices)
 
         # Now actually slice with pbc along each direction.
         newarr = np.asarray(self)
-        for idim, sli in enumerate(slices):
+        for idim, sli in slices:
             start = sli.start
             stop = sli.stop
             step = sli.step
@@ -417,6 +402,49 @@ class pbcarray(np.ndarray):
             newarr = newarr[slice_tup]
 
         return newarr
+
+    def _reconstruct_full_slices(self, shape_, index):
+        """
+        Auxiliary function for __getitem__ to reconstruct the explicit slicing
+        of the array if ellipsis and missing axes
+
+        """
+        if not isinstance(index, tuple):
+            index = (index,)
+        slices = []
+        idx_len, rank = len(index), len(shape_)
+
+        for slice_ in index:
+            if slice_ is Ellipsis:
+                slices.extend([slice(None)] * (rank+1-idx_len))
+            elif isinstance(slice_, slice):
+                slices.append(slice_)
+            elif isinstance(slice_, (int)):
+                slices.append(slice(slice_,slice_+1))
+
+        sli_len = len(slices)
+        if sli_len > rank:
+            msg = 'too many indices for array'
+            raise IndexError(msg)
+        elif sli_len < rank:
+            slices.extend([slice(None)]*(rank-sli_len))
+            # Add info about the dimension the slice refers to so we can keep
+            # track if we reorder them later.
+
+        slices = list(zip(range(rank), slices))
+
+        return slices
+
+    def _order_slices(self, shape_, slices):
+        """
+        Order the slices span in ascending order.
+        When we are slicing a pbcarray we might be rolling and padding the array
+        so it's probably a good idea to make the array as small as possible
+        early on.
+
+        """
+        pass
+        # for idim, sli in zip(*zip(slices), :
 
 
 def r2s(pos, cell):
