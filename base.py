@@ -343,65 +343,72 @@ class pbcarray(np.ndarray):
 
         """
         shape_ = self.shape
-        rank = len(shape_)
+        rank_ = len(shape_)
+        rank = rank_
+
+        if len(index) == rank_ and all([isinstance(x,int) for x in index]):
+            return np.ndarray.__getitem__(self,index)
 
         slices = self._reconstruct_full_slices(shape_, index)
 
-        # slices = self._order_slices(shape_, slices)
+        #slices = self._order_slices(shape_, slices)
 
         # Now actually slice with pbc along each direction.
-        newarr = np.asarray(self)
-        for idim, sli in slices:
-            start = sli.start
-            stop = sli.stop
-            step = sli.step
-            step_ = sli.step
+        newarr = self
+        lowered_rank = 0
 
-            if step is None:
-                step = 1
+        slice_tup = [slice(None)]*rank
 
-            if step > 0:
-                if start is None:
-                    start = 0
-                if stop is None:
-                    stop = shape_[idim]
+        for idim_, sli in zip(range(rank),slices):
+            #idim = idim_ - lowered_rank
+            idim = idim_
 
-            elif step < 0:
-                if start is None:
-                    start = shape_[idim]
-                if stop is None:
-                    stop = 0
+            if isinstance(sli, slice):
+                step = sli.step or 1
+                start = sli.start or (0 if step > 0 else shape_[idim])
+                stop = sli.stop or (shape_[idim] if step > 0 else 0)
 
-            lower = min(start, stop)
-            upper = max(start, stop)
-            span = upper - lower
+                lower = min(start, stop)
+                upper = max(start, stop)
+                span = upper - lower
 
-            # If the beginning of the slice does not coincide with a grid point
-            # equivalent to 0, roll the array along that axis until it does
-            roll = 0
-            if lower % shape_[idim] != 0:
-                roll = -lower % shape_[idim]
-                newarr = np.roll(newarr, roll, axis=idim)
+                sli = slice(None, span, step)
 
-            # If the span of the slice extends beyond the boundaries of the array,
-            # pad the array along that axis until we have enough elements.
-            if span > shape_[idim]:
-                pad_tup = [(0, 0)] * rank
-                pad_tup[idim] = (0, span - shape_[idim])
-                newarr = np.pad(newarr, pad_tup, mode='wrap')
+                # If the beginning of the slice does not coincide with a grid point
+                # equivalent to 0, roll the array along that axis until it does
+                roll = 0
+                if lower % shape_[idim] != 0:
+                    roll = -lower % shape_[idim]
+                    newarr = np.roll(newarr, roll, axis=idim)
+
+                # If the span of the slice extends beyond the boundaries of the array,
+                # pad the array along that axis until we have enough elements.
+                if span > shape_[idim]:
+                    pad_tup = [(0, 0)] * rank
+                    pad_tup[idim] = (0, span - shape_[idim])
+                    newarr = np.pad(newarr, pad_tup, mode='wrap')
+
+            slice_tup[idim] = sli
 
             # And now get the slice of the array allong the axis.
-            slice_tup = [slice(None)]*rank
-            if step < 0:
-                slice_tup[idim] = slice(
-                    start + roll, stop + roll, step_)
-            else:
-                slice_tup[idim] = slice(None, span, step)
+            #slice_tup = [slice(None)]*rank
+            #slice_tup[idim] = sli
+            #if step < 0:
+            #    slice_tup[idim] = slice(
+            #        start + roll, stop + roll, step_)
+            #else:
+            #    slice_tup[idim] = slice(None, span, step)
 
-            slice_tup = tuple(slice_tup)
-            newarr = newarr[slice_tup]
+            #slice_tup = tuple(slice_tup)
+            #newarr = newarr[slice_tup]
 
-        return newarr
+            if False and isinstance(sli, int):
+                lowered_rank += 1
+                rank -= 1
+
+        slice_tup = tuple(slice_tup)
+
+        return np.ndarray.__getitem__(newarr, slice_tup)
 
     def _reconstruct_full_slices(self, shape_, index):
         """
@@ -420,7 +427,8 @@ class pbcarray(np.ndarray):
             elif isinstance(slice_, slice):
                 slices.append(slice_)
             elif isinstance(slice_, (int)):
-                slices.append(slice(slice_,slice_+1))
+                slices.append(slice_)
+                #slices.append(slice(slice_,slice_+1))
 
         sli_len = len(slices)
         if sli_len > rank:
@@ -431,7 +439,7 @@ class pbcarray(np.ndarray):
             # Add info about the dimension the slice refers to so we can keep
             # track if we reorder them later.
 
-        slices = list(zip(range(rank), slices))
+        #slices = list(zip(range(rank), slices))
 
         return slices
 
@@ -443,8 +451,17 @@ class pbcarray(np.ndarray):
         early on.
 
         """
-        pass
-        # for idim, sli in zip(*zip(slices), :
+        sizes = []
+        for idim, sli in slices:
+            step = sli.step or 1
+            start = sli.start or (0 if step > 0 else shape_[idim])
+            stop = sli.stop or (shape_[idim] if step > 0 else 0)
+            size = abs((max(start, stop) - min(start, stop))//step)
+            sizes.append(size)
+
+        sizes, slices = zip(*sorted(zip(sizes, slices)))
+
+        return slices
 
 
 def r2s(pos, cell):
