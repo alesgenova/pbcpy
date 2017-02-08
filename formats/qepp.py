@@ -104,7 +104,7 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = Plot(grid, plot_num, grid_pp=ppgrid)
+            plot = Plot(grid, plot_num, griddata_pp=ppgrid)
 
             return System(atoms, grid, name=self.title, plot=plot)
 

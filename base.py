@@ -428,6 +428,7 @@ def _reconstruct_full_slices(shape_, index):
 
     return slices
 
+
 def _order_slices(dim, slices):
     """
     Order the slices span in ascending order.
@@ -448,6 +449,7 @@ def _order_slices(dim, slices):
 
     return slices
 
+
 def _check_slice(sli, dim):
     """
     Check if the current slice needs to be treated with pbc or if we can
@@ -466,7 +468,7 @@ def _check_slice(sli, dim):
     stop = (dim if step > 0 else 0) if sli.stop is None else sli.stop
     span = (stop - start if step > 0 else start - stop)
 
-    if span <= 0 :
+    if span <= 0:
         return _roll, _pad, sli.start, sli.stop, sli.step
 
     lower = min(start, stop)
@@ -483,6 +485,7 @@ def _check_slice(sli, dim):
         _stop = sli.stop
 
     return _roll, _pad, _start, _stop, step
+
 
 def r2s(pos, cell):
     # Vectorize the code: the right most axis is where the coordinates are

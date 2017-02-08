@@ -65,18 +65,18 @@ class Plot(object):
 
     spl_order = 3
 
-    def __init__(self, grid, plot_num, grid_pp=None, grid_3d=None):
+    def __init__(self, grid, plot_num, griddata_pp=None, griddata_3d=None):
         self.grid = grid
         self.plot_num = plot_num
         self.spl_coeffs = None
-        if grid_pp is None and grid_3d is None:
+        if griddata_pp is None and griddata_3d is None:
             pass
-        elif grid_pp is not None:
-            self.values = np.reshape(grid_pp, grid.nr, order='F')
-        elif grid_3d is not None:
-            self.values = grid_3d
+        elif griddata_pp is not None:
+            self.values = np.reshape(griddata_pp, grid.nr, order='F')
+        elif griddata_3d is not None:
+            self.values = griddata_3d
 
-    def calc_spline(self):
+    def _calc_spline(self):
         padded_values = np.pad(self.values, ((self.spl_order,)), mode='wrap')
         self.spl_coeffs = ndimage.spline_filter(
             padded_values, order=self.spl_order)
@@ -88,7 +88,7 @@ class Plot(object):
         of points, and returns a new plot object.
         """
         if self.spl_coeffs is None:
-            self.calc_spline()
+            self._calc_spline()
         x = np.linspace(0, 1, nr_new[0], endpoint=False) * \
             self.grid.nr[0] + self.spl_order
         y = np.linspace(0, 1, nr_new[1], endpoint=False) * \
@@ -99,12 +99,12 @@ class Plot(object):
         new_values = ndimage.map_coordinates(
             self.spl_coeffs, [X, Y, Z], mode='wrap')
         new_grid = Grid(self.grid.at, nr_new, units=self.grid.units)
-        return Plot(new_grid, self.plot_num, grid_3d=new_values)
+        return Plot(new_grid, self.plot_num, griddata_3d=new_values)
 
     def get_value_at_points(self, points):
-        '''points is in crystal coordinates'''
+        """points is in crystal coordinates"""
         if self.spl_coeffs is None:
-            self.calc_spline()
+            self._calc_spline()
         for ipol in range(3):
             # restrict crystal coordinates to [0,1)
             points[:, ipol] = (points[:, ipol] % 1) * \
@@ -153,11 +153,11 @@ class Plot(object):
             nrx[0:ndim] = np.asarray(nr, dtype=int)
 
         dr = np.zeros((3, 3), dtype=float)
-        dr[0, :] = (r0 - x0) / nrx[0]
+        dr[0, :] = (r0) / nrx[0]
         if ndim > 1:
-            dr[1, :] = (r1 - x0) / nrx[1]
+            dr[1, :] = (r1) / nrx[1]
             if ndim == 3:
-                dr[2, :] = (r2 - x0) / nrx[2]
+                dr[2, :] = (r2) / nrx[2]
         points = np.zeros((nrx[0], nrx[1], nrx[2], 3))
         axis = []
         for ipol in range(3):
