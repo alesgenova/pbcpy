@@ -21,6 +21,8 @@ from ..constants import LEN_CONV
 
 class XSF(object):
 
+    xsf_units = 'Angstrom'
+
     def __init__(self, filexsf):
         self.filexsf = filexsf
         self.title = ''
@@ -36,8 +38,6 @@ class XSF(object):
             - write the 1D/2D/3D grid data
         """
 
-        xsf_units = 'Angstrom'
-
         title = system.name
         cell = system.cell
         ions = system.ions
@@ -51,6 +51,7 @@ class XSF(object):
             self._write_header(fileout, title)
             self._write_cell(fileout, cell)
             self._write_coord(fileout, ions)
+            self._write_datagrid(fileout, plot)
 
 
     def _write_header(self, fileout, title):
@@ -60,34 +61,36 @@ class XSF(object):
     def _write_cell(self, fileout, cell):
         mywrite(fileout, "PRIMVEC", True)
         for ilat in range(3):
-            latt = cell.at[:, ilat] * LEN_CONV[cell.units][xsf_units]
+            latt = cell.at[:, ilat] * LEN_CONV[cell.units][self.xsf_units]
             mywrite(fileout, latt, True)
 
     def _write_coord(self, fileout, ions):
         mywrite(fileout, "PRIMCOORD", True)
         mywrite(fileout, (len(ions), 1), True)
         for iat, atom in enumerate(ions):
-            mywrite(fileout, (atom.label, atom.pos.conv(xsf_units)), True)
+            mywrite(fileout, (atom.label, atom.pos.conv(self.xsf_units)), True)
 
     def _write_datagrid(self, fileout, plot):
-        ndim = len(plot.grid.nr) # 2D or 3D grid?
+        ndim = plot.ndim # 2D or 3D grid?
+        if ndim < 2:
+            return # XSF format doesn't support one data grids
         val_per_line = 5
-        values = plot.get_values_1darray(pad=1, order='F')
+        values = plot.get_values_flatarray(pad=1, order='F')
 
         mywrite(fileout, "BEGIN_BLOCK_DATAGRID_{}D".format(ndim), True)
         mywrite(fileout, "{}d_datagrid_from_pbcpy".format(ndim), True)
         mywrite(fileout, "BEGIN_DATAGRID_{}D".format(ndim), True)
         nnr = len(values)
+        origin = plot.grid.origin * LEN_CONV[plot.grid.units][self.xsf_units]
         if ndim == 3:
             mywrite(fileout, (plot.grid.nr[
                     0] + 1, plot.grid.nr[1] + 1, plot.grid.nr[2] + 1), True)
         elif ndim ==2:
             mywrite(fileout, (plot.grid.nr[
                     0] + 1, plot.grid.nr[1] + 1), True)
-
-        mywrite(fileout, (0., 0., 0.), True) # TODO, there might be an actual origin if we're dealing with a custom cut of the grid
+        mywrite(fileout, origin, True) # TODO, there might be an actual origin if we're dealing with a custom cut of the grid
         for ilat in range(ndim):
-            latt = plot.grid.at[:, ilat] * LEN_CONV[plot.grid.units][xsf_units]
+            latt = plot.grid.at[:, ilat] * LEN_CONV[plot.grid.units][self.xsf_units]
             mywrite(fileout, latt, True)
 
         nlines = nnr // val_per_line

@@ -30,7 +30,7 @@ class PP(object):
         self.cutoffvars = {}
         # self.readpp()
 
-    def readpp(self):
+    def read(self):
 
         with open(self.filepp) as filepp:
             # title

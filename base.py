@@ -35,7 +35,7 @@ class Cell(object):
         volume of the cell in units**3
 
     """
-    def __init__(self, at, units='Bohr'):
+    def __init__(self, at, origin=np.array([0.,0.,0.]), units='Bohr'):
         """
         Parameters
         ----------
@@ -46,6 +46,7 @@ class Cell(object):
 
         """
         self.at = np.asarray(at)
+        self.origin = np.asarray(origin)
         self.units = units
         self.bg = np.linalg.inv(at)
         self.omega = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
