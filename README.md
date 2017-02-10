@@ -80,6 +80,7 @@ type(pos1.cell)
 - `d_mic(other)` : Calculate the vector connecting two coordinates (from self to other), using the minimum image convention (MIC). The result is itself a coordinate.
 - `dd_mic(other)` : Calculate the distance between two coordinates, using the MIC.
 - `+`/`-` operators : Calculate the difference/sum between two coordinates without using the MIC. `units` and `ctype` conversions are automatically done as needed.
+
 ```python
 pos1 = Coord(pos=[0.5,0.0,1.0], cell=cell1, ctype="Crystal")
 pos2 = Coord(pos=[0.6,-1.0,3.0], cell=cell1, ctype="Crystal")
@@ -101,7 +102,6 @@ pos2 - pos1
 >>> Coord([ 0.1, -1. ,  2. ])
 (pos2 - pos1).length()
 >>> 22.383029285599392
-
 ```
 
 ### `Grid` class
@@ -121,6 +121,7 @@ grid1 = Grid(at=at1, nr=[100,100,100], origin=[0,0,0], units="Angstrom"
 - `nnr` : total number of points in the grid
 - `r` : cartesian coordinates at each grid point. A rank 3 array of type `Coord`
 - `s` : crystal coordinates at each grid point. A rank 3 array of type `Coord`
+
 ```python
 # The volume of each point
 grid1.dV
@@ -157,6 +158,7 @@ grid1.s
 The `Plot` class represents a scalar field on a `Grid`.
 
 A `Plot` can be generated directly from Quantum Espresso postprocessing `.pp` files.
+
 ```python
 # A Plot example
 from pbcpy.grid import Plot
