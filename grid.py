@@ -24,7 +24,7 @@ class Grid(Cell):
 
     def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
         super().__init__(at, origin, units)
-        self.nr = nr
+        self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
         self.dV = self.omega / self.nnr
         self.r = None
@@ -193,6 +193,7 @@ class Plot(object):
         at[:,0] = r0.to_cart()
         if ndim > 1:
             at[:,1] = r1.to_cart()
+            at[:,2] = np.array([0,1,0])
             if ndim == 3:
                 at[:,2] = r2.to_cart()
         cut_grid = Grid(at=at, nr=nrx, origin=origin, units=x0.cell.units)

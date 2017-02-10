@@ -16,7 +16,7 @@
 '''
 
 import numpy as np
-from ..griddata import Grid, Plot
+from ..grid import Grid, Plot
 from ..system import System
 from ..atom import Atom
 from ..system import System

@@ -264,7 +264,7 @@ class Coord(np.ndarray):
         """
         return self.d_mic(other).lenght()
 
-    def lenght(self):
+    def length(self):
         """
         Calculate the legth of a Coord array.
 
