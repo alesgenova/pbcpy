@@ -261,7 +261,7 @@ A `Plot` can be generated directly from Quantum Espresso postprocessing `.pp` fi
 >>> xsffile = '/path/to/output.xsf'
 >>> XSF(xsffile).write(system=water)
 
-# ad additional plot parameter can be passed to XSF.write() in order to override the Plot in system.
+# an additional plot parameter can be passed to XSF.write() in order to override the Plot in system.
 # This is especially useful if one wants to output one system and an arbitrary cut of the grid,
 # such as the one we generated before
 >>> XSF(xsffile).write(system=water, plot=plot_cut)
