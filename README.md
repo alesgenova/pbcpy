@@ -14,6 +14,7 @@ Finally, `pbcpy` provides IO support to some common file formats:
 
 ## `Cell` class
 A unit cell is defined by its lattice vectors. To create a `Cell` object we need to provide it a `3x3` matrix containing the lattice vectors (as columns).
+
 ```python
 >>> from pbcpy.base import Cell
 >>> at1 = np.identity(3)*10
@@ -25,8 +26,9 @@ A unit cell is defined by its lattice vectors. To create a `Cell` object we need
 - `units` : the length units of the lattice vectors
 - `at` : the lattice vectors (as columns)
 - `bg` : the reciprocal vectors (as columns)
+- `omega` : the volume of the cell
+- 
 ```python
-# the units
 >>> cell1.units
 'Angstrom'
 
@@ -49,6 +51,7 @@ array([[ 0.1,  0. ,  0. ],
 
 ### `Cell` methods
 - `==` operator : compare two `Cell` objects even if they have different units
+
 ```python
 >>> at2 = np.identity(3)
 >>> cell2 = Cell(at=at2, origin=[0,0,0], units="nm") # 1nm cubic cell
@@ -60,6 +63,7 @@ True
 `Coord` is a `numpy.array` derived class, with some additional attributes and methods.
 Coordinates in a periodic system are meaningless without the reference unit cell, this is why a `Coord` object also has an embedded `Cell` attribute.
 Also, coordinates can be either `"Cartesian"` or `"Crystal"`.
+
 ```python
 >>> from pbcpy.base import Coord
 >>> pos1 = Coord(pos=[0.5,0.6,0.3], cell=cell1, ctype="Cartesian")
@@ -68,6 +72,7 @@ Also, coordinates can be either `"Cartesian"` or `"Crystal"`.
 ### `Coord` attributes
 - `ctype` : the coordinate type: `'Cartesian'` or `'Crystal'`.
 - `cell` : the `Cell` object associated to the coordinates.
+
 ```python
 # the coordinate type (Cartesian or Crystal)
 >>> pos1.ctype
