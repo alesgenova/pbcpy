@@ -1,20 +1,3 @@
-'''
-    pbcpy is a python package to seamlessly tackle periodic boundary conditions.
-
-    Copyright (C) 2016 Alessandro Genova (ales.genova@gmail.com).
-
-    pbcpy is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    pbcpy is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with pbcpy.  If not, see <http://www.gnu.org/licenses/>.
-'''
-
 import numpy as np
 from scipy import ndimage
 from .base import Cell, Coord
@@ -174,12 +157,12 @@ class Plot(object):
         for ipol in range(3):
             axis.append(np.zeros((nrx[ipol], 3)))
             for ir in range(nrx[ipol]):
-                axis[ipol][ir, :] = x0 + ir * dr[ipol]
+                axis[ipol][ir, :] = ir * dr[ipol]
 
         for i in range(nrx[0]):
             for j in range(nrx[1]):
                 for k in range(nrx[2]):
-                    points[i, j, k, :] = axis[0][i, :] + \
+                    points[i, j, k, :] = x0 + axis[0][i, :] + \
                         axis[1][j, :] + axis[2][k, :]
 
         a, b, c, d = points.shape
