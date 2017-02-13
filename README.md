@@ -27,7 +27,7 @@ A unit cell is defined by its lattice vectors. To create a `Cell` object we need
 - `at` : the lattice vectors (as columns)
 - `bg` : the reciprocal vectors (as columns)
 - `omega` : the volume of the cell
-- 
+
 ```python
 >>> cell1.units
 'Angstrom'
