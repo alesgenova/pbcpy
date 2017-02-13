@@ -176,8 +176,7 @@ A `Plot` can be generated directly from Quantum Espresso postprocessing `.pp` fi
 
 # Plots can be generated from Quantum Espresso files
 >>> from pbcpy.formats.qepp import PP
->>> ppfile = "/home/alessandro/QE/FDE_Calc/dimer/H2O_0/density_ks.pp"
->>> water = PP(filepp="/path/to/water.scf.pp").read()
+>>> water = PP(filepp="/path/to/density.pp").read()
 >>> plot2 = water.plot
 ```
 
@@ -249,8 +248,7 @@ A `Plot` can be generated directly from Quantum Espresso postprocessing `.pp` fi
 ### `PP` class
 `pbcpy` can read Quantum Espresso post-processing `.pp` files.
 ```python
->>> ppfile = "/home/alessandro/QE/FDE_Calc/dimer/H2O_0/density_ks.pp"
->>> water = PP(ppfile).read() 
+>>> water = PP(filepp='/path/to/density.pp').read() 
 # the output of PP.read() is a System object.
 ```
 
@@ -258,12 +256,11 @@ A `Plot` can be generated directly from Quantum Espresso postprocessing `.pp` fi
 ### `XSF` class
 `pbcpy` can write a `System` object into a XCrySDen  `.xsf` file.
 ```python
->>> xsffile = '/path/to/output.xsf'
->>> XSF(xsffile).write(system=water)
+>>> XSF(filexsf='/path/to/output.xsf').write(system=water)
 
 # an additional plot parameter can be passed to XSF.write() in order to override the Plot in system.
 # This is especially useful if one wants to output one system and an arbitrary cut of the grid,
 # such as the one we generated before
->>> XSF(xsffile).write(system=water, plot=plot_cut)
+>>> XSF(filexsf='/path/to/output.xsf').write(system=water, plot=plot_cut)
 ```
 
