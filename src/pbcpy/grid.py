@@ -131,7 +131,6 @@ class Plot(object):
 
         ndim = 1
 
-
         x0 = x0.to_crys()
         r0 = r0.to_crys()
         if r1 is not None:
@@ -173,12 +172,33 @@ class Plot(object):
         # generate a new grid (possibly 1D/2D/3D)
         origin = x0.to_cart()
         at = np.identity(3)
-        at[:,0] = r0.to_cart()
-        if ndim > 1:
-            at[:,1] = r1.to_cart()
-            at[:,2] = np.array([0,1,0])
-            if ndim == 3:
-                at[:,2] = r2.to_cart()
+        v0 = r0.to_cart()
+        v1 = np.zeros(3)
+        v2 = np.zeros(3)
+        # We still need to define 3 lattice vectors even if the plot is in 1D/2D
+        # Here we ensure the 'ficticious' vectors are orthonormal to the actual ones
+        # so that units of length/area are correct.
+        if ndim == 1:
+            for i in range(3):
+                if abs(v0[i]) > 1e-4:
+                    j = i - 1
+                    v1[j] = v0[i]
+                    v1[i] = -v0[j]
+                    v1 = v1 / np.sqrt(np.dot(v1,v1))
+                    break
+            v2 = np.cross(v0,v1)
+            v2 = v2 / np.sqrt(np.dot(v2,v2))
+        elif ndim  == 2:
+            v1 = r1.to_cart()
+            v2 = np.cross(v0,v1)
+            v2 = v2/ np.sqrt(np.dot(v2,v2))
+        elif ndim == 3:
+            v1 = r1.to_cart()
+            v2 = r2.to_cart()
+        at[:,0] = v0
+        at[:,1] = v1
+        at[:,2] = v2
+
         cut_grid = Grid(at=at, nr=nrx, origin=origin, units=x0.cell.units)
 
         if ndim == 1:

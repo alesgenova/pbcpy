@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='pbcpy',
       description='''A toolbox to make it easier to deal with materials under
@@ -24,7 +24,8 @@ setup(name='pbcpy',
           'Topic :: Scientific/Engineering :: Chemistry',
           'Topic :: Scientific/Engineering :: Physics'
       ],
-      packages=find_packages(),
+      packages=find_packages('src'),  # include all packages under src
+      package_dir={'':'src'},   # tell distutils packages are under src
       install_requires=[
           'numpy>=1.6.0',
           'scipy>=0.10.0'
