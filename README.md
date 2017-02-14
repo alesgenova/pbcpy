@@ -12,6 +12,8 @@ Finally, `pbcpy` provides IO support to some common file formats:
 - The Quantum Espresso `.pp` format (read only)
 - The XCrySDen `.xsf` format (write only)
 
+`pbcpy` has been developed by Alessandro Genova @ [Pavanello Research Group](http://michelepavanello.com/)
+
 ## `Cell` class
 A unit cell is defined by its lattice vectors. To create a `Cell` object we need to provide it a `3x3` matrix containing the lattice vectors (as columns).
 
