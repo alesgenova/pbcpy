@@ -3,10 +3,41 @@ from scipy import ndimage
 from .base import Cell, Coord
 
 
+class ReciprocalGrid(Cell):
+    def __init__(self, a, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
+        super().__init__(a, origin, units)
+        self.nr = np.asarray(nr)
+        self.nnr = nr[0] * nr[1] * nr[2]
+        self.dV = self.omega / self.nnr
+        self.g = None
+        self.gg = None
+        self._calc_gridpoints()
+
+    def _calc_gridpoints(self):
+        if self.g is None:
+
+            g0 = np.linspace(-0.5, 0.5, self.nr[0], endpoint=False)
+            g1 = np.linspace(-0.5, 0.5, self.nr[1], endpoint=False)
+            g2 = np.linspace(-0.5, 0.5, self.nr[2], endpoint=False)
+            G = np.ndarray(shape=(self.nr[0], self.nr[
+                           1], self.nr[2], 3), dtype=float)
+            G[:, :, :, 0], G[:, :, :, 1], G[
+                :, :, :, 2] = np.meshgrid(g0, g1, g2, indexing='ij')
+            g = Coord(G, cell=self, ctype='Crystal')
+            self.g = g.to_cart()
+            self.gg = np.zeros(self.nr)
+            for i in range(self.nr[0]):
+                for j in range(self.nr[1]):
+                    for k in range(self.nr[2]):
+                        the_g = self.g[i,j,k,:]
+                        self.gg[i,j,k] = np.sqrt(np.dot(the_g,the_g))
+            #self.gg = np.dot(self.g,self.g)
+    
+
 class Grid(Cell):
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
-        super().__init__(at, origin, units)
+    def __init__(self, a, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
+        super().__init__(a, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
         self.dV = self.omega / self.nnr
