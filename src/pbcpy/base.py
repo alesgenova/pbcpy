@@ -245,7 +245,7 @@ class Coord(np.ndarray):
             the minimum distance between self and other from applying the MIC.
 
         """
-        return self.d_mic(other).lenght()
+        return self.d_mic(other).length()
 
     def length(self):
         """
@@ -254,7 +254,7 @@ class Coord(np.ndarray):
         Returns
         -------
         out : float
-            The lenght of the Coord array, in the same units as self.cell.
+            The length of the Coord array, in the same units as self.cell.
 
         """
         return np.sqrt(np.dot(self.to_cart(), self.to_cart()))

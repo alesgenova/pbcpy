@@ -4,8 +4,8 @@ from .base import Cell, Coord
 
 
 class ReciprocalGrid(Cell):
-    def __init__(self, a, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
-        super().__init__(a, origin, units)
+    def __init__(self, bg, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
+        super().__init__(bg, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
         self.dV = self.omega / self.nnr
@@ -15,14 +15,16 @@ class ReciprocalGrid(Cell):
 
     def _calc_gridpoints(self):
         if self.g is None:
+            ax = []
+            for i in range(3):
+                # use fftfreq function so we don't have to worry about odd or even number of points
+                ax.append(np.fft.fftfreq(self.nr[i]))
+                work = np.zeros(self.nr[i])
 
-            g0 = np.linspace(-0.5, 0.5, self.nr[0], endpoint=False)
-            g1 = np.linspace(-0.5, 0.5, self.nr[1], endpoint=False)
-            g2 = np.linspace(-0.5, 0.5, self.nr[2], endpoint=False)
             G = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
             G[:, :, :, 0], G[:, :, :, 1], G[
-                :, :, :, 2] = np.meshgrid(g0, g1, g2, indexing='ij')
+                :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
             g = Coord(G, cell=self, ctype='Crystal')
             self.g = g.to_cart()
             self.gg = np.zeros(self.nr)
@@ -32,7 +34,7 @@ class ReciprocalGrid(Cell):
                         the_g = self.g[i,j,k,:]
                         self.gg[i,j,k] = np.sqrt(np.dot(the_g,the_g))
             #self.gg = np.dot(self.g,self.g)
-    
+
 
 class Grid(Cell):
 
@@ -79,8 +81,9 @@ class Plot(object):
     # order of the spline interpolation
     spl_order = 3
 
-    def __init__(self, grid, plot_num=0, griddata_pp=None, griddata_3d=None):
+    def __init__(self, grid, reciprocal_grid, plot_num=0, griddata_pp=None, griddata_3d=None):
         self.grid = grid
+        self.reciprocal_grid = reciprocal_grid
         self.ndim = (grid.nr > 1).sum()
         self.plot_num = plot_num
         self.spl_coeffs = None
@@ -90,12 +93,23 @@ class Plot(object):
             self.values = np.reshape(griddata_pp, grid.nr, order='F')
         elif griddata_3d is not None:
             self.values = griddata_3d
+        self.reciprocal_values = np.zeros(shape=reciprocal_grid.nr)
 
     def _calc_spline(self):
         padded_values = np.pad(self.values, ((self.spl_order,)), mode='wrap')
         self.spl_coeffs = ndimage.spline_filter(
             padded_values, order=self.spl_order)
         return
+
+    def fft(self):
+        #do we want to return the value of the fft and assign it as well?
+        self.reciprocal_values = np.fft.fftn(self.values)
+        return self.reciprocal_values
+
+    def ifft(self):
+        #do we want to return the value of the ifft and assign it as well?
+        self.values = np.fft.fftn(self.reciprocal_values)
+        return self.values
 
     def get_3dinterpolation(self, nr_new):
         """
