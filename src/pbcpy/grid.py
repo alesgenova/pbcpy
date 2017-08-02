@@ -4,7 +4,7 @@ from .base import Cell, Coord
 
 
 class ReciprocalGrid(Cell):
-    def __init__(self, bg, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
+    def __init__(self, bg, nr, units, origin=np.array([0.,0.,0.])):
         super().__init__(bg, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
@@ -18,7 +18,7 @@ class ReciprocalGrid(Cell):
             ax = []
             for i in range(3):
                 # use fftfreq function so we don't have to worry about odd or even number of points
-                ax.append(np.fft.fftfreq(self.nr[i]))
+                ax.append(np.fft.fftfreq(self.nr[i],d=1))
                 work = np.zeros(self.nr[i])
 
             G = np.ndarray(shape=(self.nr[0], self.nr[
@@ -77,7 +77,7 @@ class Grid(Cell):
         return mask
 
 
-class Plot(object):
+class Grid_Function(object):
     # order of the spline interpolation
     spl_order = 3
 
@@ -108,7 +108,7 @@ class Plot(object):
 
     def ifft(self):
         #do we want to return the value of the ifft and assign it as well?
-        self.values = np.fft.fftn(self.reciprocal_values)
+        self.values = np.fft.ifftn(self.reciprocal_values)
         return self.values
 
     def get_3dinterpolation(self, nr_new):
@@ -128,7 +128,7 @@ class Plot(object):
         new_values = ndimage.map_coordinates(
             self.spl_coeffs, [X, Y, Z], mode='wrap')
         new_grid = Grid(self.grid.at, nr_new, units=self.grid.units)
-        return Plot(new_grid, self.plot_num, griddata_3d=new_values)
+        return Grid_Function(new_grid, self.plot_num, griddata_3d=new_values)
 
     def get_value_at_points(self, points):
         """points is in crystal coordinates"""
@@ -164,7 +164,7 @@ class Plot(object):
 
     def get_plotcut(self, x0, r0, r1=None, r2=None, nr=10):
         """
-        general routine to get the arbitrary cuts of a Plot object in 1,2,
+        general routine to get the arbitrary cuts of a Grid_Function object in 1,2,
         or 3 dimensions. spline interpolation will be used.
             x0 = origin of the cut
             r0 = first vector (always required)
@@ -253,4 +253,4 @@ class Plot(object):
         elif ndim == 3:
             values = values.reshape((a, b, c))
 
-        return Plot(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)
+        return Grid_Function(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)

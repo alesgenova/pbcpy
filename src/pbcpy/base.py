@@ -249,7 +249,7 @@ class Coord(np.ndarray):
 
     def length(self):
         """
-        Calculate the legth of a Coord array.
+        Calculate the length of a Coord array.
 
         Returns
         -------
