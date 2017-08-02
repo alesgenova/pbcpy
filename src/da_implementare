@@ -1,8 +1,15 @@
-ho grid e grid_function
+ho grid, ReciprocalGrid e grid_function
 
-voglio f(p):grid -> grid_function
-f distanza definita a partire da un punto p della griglia (risolvere problema della distanza = 0)
+grid e ReciprocalGrid sono cell subclasses
+e fanno le stesse cose (circa), una definita su cell.at e una su cell.bg (lattice vectors e reciprocal lattice vectors) e stessi nr
 
-grid decoration di cell?
+grid e reciprocal grid si possono unire e prendere come input una cell (che ha at e bg definiti) (si evita di definire duplicati)
+
+devo poter definire funzioni su spazio reale e avere indietro le funzioni trasformate nello spazio reciproco e viceversa
+
+voglio f_p(r):grid -> grid_function (definibile sia nello spazio reale che nello spazio reciproco)
+f distanza di r da un punto p della griglia (risolvere problema della distanza = 0)
+
+
 
 

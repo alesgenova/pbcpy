@@ -31,9 +31,7 @@ class Cell(object):
         self.at = np.asarray(at)
         self.origin = np.asarray(origin)
         self.units = units
-        self.bg = np.linalg.inv(at)
         self.omega = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
-        # self.alat = np.sqrt(np.dot(at[:][0], at[:][0]))
 
     def __eq__(self, other):
         """
@@ -86,6 +84,10 @@ class Cell(object):
             return self
         else:
             return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
+
+    def reciprocal_cell(self):
+        bg = np.linalg.inv(self.at)
+        return Cell(at=bg,units=self.units,origin=np.array([0.,0.,0.]))
 
 
 class Coord(np.ndarray):
