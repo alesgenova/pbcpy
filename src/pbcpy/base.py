@@ -165,6 +165,11 @@ class Coord(np.ndarray):
 
         return np.ndarray.__add__(self, other)
 
+    def __multiply__(self,scalar):
+        """ Implement the scalar multiplication"""
+        # TODO check scalar is a scalar
+        return np.multiply(self,scalar)
+
     def to_cart(self):
         """
         Converts the coordinates to Cartesian and return a new Coord object.

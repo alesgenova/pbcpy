@@ -1,15 +1,46 @@
-ho grid, ReciprocalGrid e grid_function
-
-grid e ReciprocalGrid sono cell subclasses
-e fanno le stesse cose (circa), una definita su cell.at e una su cell.bg (lattice vectors e reciprocal lattice vectors) e stessi nr
-
-grid e reciprocal grid si possono unire e prendere come input una cell (che ha at e bg definiti) (si evita di definire duplicati)
-
 devo poter definire funzioni su spazio reale e avere indietro le funzioni trasformate nello spazio reciproco e viceversa
 
 voglio f_p(r):grid -> grid_function (definibile sia nello spazio reale che nello spazio reciproco)
-f distanza di r da un punto p della griglia (risolvere problema della distanza = 0)
+f distanza di r da un punto p della griglia (risolvere problema della distanza = 0?)
 
+implementare:
 
+Classi
+  ok  cell
+  ok  grid (con centratura in 0 o MIC, spazio di punti)
+  ok  grid_space (ha grid su sp reale e reciproco)
+    grid_func_base (funzioni su grid)
+    grid_func su sp reale (prende grid_space come spazio)
+    grid_func_rec su sp reciproco (prende grid_space come spazio)
 
+- MIC sia su spazio reale che su spazio reciproco?
 
+- su Grid:
+    ok a) invgrid
+
+- su Grid_func_base:
+    a) metodo "Int" per avere il valore della somma di f sui punti della grid
+    b) metodo self.dotFunc(f) -> self(x)=self(x)*f(x)
+    c) metodo self.sumFunc(f) -> self(x)=self(x)+f(x)
+    d) metodo self.dotCnst(c) -> self(x)=self(x)*c
+    e) metodo self.sumCnst(c) -> self(x)=self(x)+c
+    ok f) metodo "funzione distanza"(p (punto della griglia (in coordinate crystal)) crea new grid_func_base f(z)=dist(z,p) (cartesian)
+
+devo definire grid_func su real e grid_func_rec su reciprocal di grid_space (unico "spazio" e' grid_space)
+
+su grid_func_rec:
+    .ifft() -> new grid_func
+
+su grid_func:
+    .fft() -> new grid_func_rec
+    .apply_trasf(grid_func_rec,R,R,R) -> new grid_func
+        input:
+            self=f(z) su spazio reale, a, b e c (in R), u(q) su spazio reciproco
+        output:
+            g(z)=f(z)^a, h(z)=f(z)^b
+            H(q)=fft(h)
+            K(q)=H(q)*u(q) (check)
+
+            ottengo k(z)=ifft(K)*g(z)*c
+
+    k.Int per avere Integrale su grid (somma valori di k su punti grid)

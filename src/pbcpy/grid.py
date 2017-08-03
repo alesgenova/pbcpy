@@ -4,57 +4,49 @@ from .base import Cell, Coord
 
 class Grid(Cell):
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic'):
         super().__init__(at, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
         self.dV = self.omega / self.nnr
-        self.ReciprocalCell = None
-        self.ReciprocalCell_dV = None
-        self.g = None
-        self.gg = None
         self.r = None
         self.s = None
-        self._setReciprocalProperties()
-        self._calc_gridpoints()
+        self._calc_gridpoints(convention)
 
-    def _setReciprocalProperties(self):
-        if self.g is None:
-            rec_cell = self.reciprocal_cell()
-            self.ReciprocalCell = rec_cell
-            self.ReciprocalCell_dV = rec_cell.omega / self.nnr
-
-    def _calc_gridpoints(self):
+    def _calc_gridpoints(self,convention):
         if self.r is None:
-            
-            s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
-            s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
-            s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
-            S[:, :, :, 0], S[:, :, :, 1], S[
-                :, :, :, 2] = np.meshgrid(s0, s1, s2, indexing='ij')
+            if convention == 'mic':
+                ax = []
+                for i in range(3):
+                    # use fftfreq function so we don't have to worry about odd or even number of points
+                    ax.append(np.fft.fftfreq(self.nr[i],d=1))
+                    work = np.zeros(self.nr[i])
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
+            elif convention == 'mic_reciprocal':
+                ax = []
+                for i in range(3):
+                    # use fftfreq function so we don't have to worry about odd or even number of points
+                    ax.append(np.fft.fftfreq(self.nr[i],d=1/self.nr[i]))
+                    work = np.zeros(self.nr[i])
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
+            else:
+                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
+                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
+                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
+
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(s0, s1, s2, indexing='ij')
             self.s = Coord(S, cell=self, ctype='Crystal')
             self.r = self.s.to_cart()
 
-            # grid in reciprocal space
-            ax = []
-            for i in range(3):
-                # use fftfreq function so we don't have to worry about odd or even number of points
-                ax.append(np.fft.fftfreq(self.nr[i],d=1/self.nr[i]))
-                work = np.zeros(self.nr[i])
-            G = np.ndarray(shape=(self.nr[0], self.nr[
-                           1], self.nr[2], 3), dtype=float)
-            G[:, :, :, 0], G[:, :, :, 1], G[
-                :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            g = Coord(G, cell=self.g_cell, ctype='Crystal')
-            self.g = g.to_cart()
-            self.gg = np.zeros(self.nr)
-            for i in range(self.nr[0]):
-                for j in range(self.nr[1]):
-                    for k in range(self.nr[2]):
-                        the_g = self.g[i,j,k,:]
-                        self.gg[i,j,k] = np.sqrt(np.dot(the_g,the_g))
+    def reciprocal_Grid(self,reciprocal_convention='mic'):
+        rec_cell = self.reciprocal_cell()
+        rec_grid = Grid(rec_cell.at,self.nr,self.units,reciprocal_convention)
+        return rec_grid
 
     def _calc_mask(self, ref_points):
 
@@ -72,8 +64,13 @@ class Grid(Cell):
                             mask[i, j, k] = 0.
         return mask
 
+class Grid_Space(object):
 
-class Grid_Function(object):
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic', reciprocal_convention='mic_reciprocal'):
+        self.grid=Grid(at, nr, origin, units, convention)
+        self.reciprocal_grid = self.grid.reciprocal_Grid(reciprocal_convention)
+
+class Grid_Function_Base(object):
     # order of the spline interpolation
     spl_order = 3
 
@@ -83,12 +80,12 @@ class Grid_Function(object):
         self.plot_num = plot_num
         self.spl_coeffs = None
         if griddata_pp is None and griddata_3d is None:
-            pass
+            # setting 0 func as default
+            self.values = np.zeros(shape=grid.nr)
         elif griddata_pp is not None:
             self.values = np.reshape(griddata_pp, grid.nr, order='F')
         elif griddata_3d is not None:
             self.values = griddata_3d
-        self.reciprocal_values = np.zeros(shape=grid.nr)
 
     def _calc_spline(self):
         padded_values = np.pad(self.values, ((self.spl_order,)), mode='wrap')
@@ -96,23 +93,25 @@ class Grid_Function(object):
             padded_values, order=self.spl_order)
         return
 
-    def fft(self):
-        #do we want to return the value of the fft and assign it as well?
-        self.reciprocal_values = np.fft.fftn(self.values)*self.grid.dV
-        return self.reciprocal_values
+    def r_square(grid,center):
+        return np.einsum('ijkl,ijkl->ijk',grid.r-center,grid.r-center)
 
-    def ifft(self):
-        #do we want to return the value of the ifft and assign it as well?
-        self.values = np.fft.ifftn(self.reciprocal_values)
-        return self.values
+    def dist_func(self,p=np.array([0.,0.,0.])):
+        """point is in crystal coordinates"""
+        # TODO return new Grid_Function_Base, the distance from grid point p
+        point = np.asarray(p)
+        cpoint = Coord(point,self.grid,ctype='Crystal',units=self.units)
+        cart_point = cpoint.to_cart().__multiply__(-1)
+        d_val = np.zeros(self.nr)
+        for i in range(self.nr[0]):
+            for j in range(self.nr[1]):
+                for k in range(self.nr[2]):
+                    the_g = self.g[i,j,k,:].__add__(cart_point)
+                    d_val[i,j,k] = np.sqrt(np.dot(the_g,the_g))
+        d_func = Grid_Function_Base(self.grid,self.plot_num,griddata_3d = d_val)
 
-    def r_square(self)
-        # return a new grid function r_square in real space
-        
+        return d_func
 
-    def r_square_rec(self)
-        # return a new grid function r_square in reciprocal space
-        
     def get_3dinterpolation(self, nr_new):
         """
         Interpolates the values of the plot on a cell with a different number
@@ -130,7 +129,7 @@ class Grid_Function(object):
         new_values = ndimage.map_coordinates(
             self.spl_coeffs, [X, Y, Z], mode='wrap')
         new_grid = Grid(self.grid.at, nr_new, units=self.grid.units)
-        return Grid_Function(new_grid, self.plot_num, griddata_3d=new_values)
+        return Grid_Function_Base(new_grid, self.plot_num, griddata_3d=new_values)
 
     def get_value_at_points(self, points):
         """points is in crystal coordinates"""
@@ -166,7 +165,7 @@ class Grid_Function(object):
 
     def get_plotcut(self, x0, r0, r1=None, r2=None, nr=10):
         """
-        general routine to get the arbitrary cuts of a Grid_Function object in 1,2,
+        general routine to get the arbitrary cuts of a Grid_Function_Base object in 1,2,
         or 3 dimensions. spline interpolation will be used.
             x0 = origin of the cut
             r0 = first vector (always required)
@@ -255,4 +254,26 @@ class Grid_Function(object):
         elif ndim == 3:
             values = values.reshape((a, b, c))
 
-        return Grid_Function(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)
+        return Grid_Function_Base(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)
+
+
+class Grid_Function_Reciprocal(Grid_Function_Base):
+
+    def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
+        grid=grid_space.reciprocal_grid
+        self.grid_space=grid_space
+        super().__init__(grid, plot_num, griddata_pp, griddata_3d)
+
+    def ifft(self):
+        return Grid_Function(grid_space, plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
+
+class Grid_Function(Grid_Function_Base):
+
+    def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
+        grid=grid_space.grid
+        super().__init__(grid, plot_num, griddata_pp, griddata_3d)
+        self.grid_space=grid_space
+
+    def fft(self):
+        return Grid_Function_Reciprocal(grid_space, plot_num, griddata_3d=np.fft.fftn(self.values)*self.grid.dV)
+
