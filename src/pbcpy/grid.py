@@ -17,19 +17,14 @@ class Grid(Cell):
         if self.r is None:
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
-            if convention == 'mic':
+            if convention == 'mic' or convention == 'mic_reciprocal':
                 ax = []
                 for i in range(3):
                     # use fftfreq function so we don't have to worry about odd or even number of points
-                    ax.append(np.fft.fftfreq(self.nr[i],d=1))
-                    work = np.zeros(self.nr[i])
-                S[:, :, :, 0], S[:, :, :, 1], S[
-                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            elif convention == 'mic_reciprocal':
-                ax = []
-                for i in range(3):
-                    # use fftfreq function so we don't have to worry about odd or even number of points
-                    ax.append(np.fft.fftfreq(self.nr[i],d=1/self.nr[i]))
+                    dd=1
+                    if convention == 'mic_reciprocal':
+                        dd=1/self.nr[i]
+                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
                     work = np.zeros(self.nr[i])
                 S[:, :, :, 0], S[:, :, :, 1], S[
                     :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
@@ -43,9 +38,9 @@ class Grid(Cell):
             self.s = Coord(S, cell=self, ctype='Crystal')
             self.r = self.s.to_cart()
 
-    def reciprocal_Grid(self,reciprocal_convention='mic'):
+    def reciprocal_grid(self,reciprocal_convention='mic_reciprocal'):
         rec_cell = self.reciprocal_cell()
-        rec_grid = Grid(rec_cell.at,self.nr,self.units,reciprocal_convention)
+        rec_grid = Grid(rec_cell.at,self.nr,units=self.units,convention=reciprocal_convention)
         return rec_grid
 
     def _calc_mask(self, ref_points):
@@ -64,11 +59,53 @@ class Grid(Cell):
                             mask[i, j, k] = 0.
         return mask
 
+    def crystal_coord_array(self,array):
+        if isinstance(array, (Coord)):
+            #TODO check units
+            return array.to_crys()
+        else:
+            return Coord(array, cell=self, ctype='Crystal', units=self.units)
+
+    def cartesian_coord_array(self,array):
+        if isinstance(array, (Coord)):
+            #TODO check units
+            return array.to_cart()
+        else:
+            return Coord(array, cell=self, ctype='Cartesian', units=self.units)
+
+    def square_len_values(self,center_array):
+        # assuming ctype=crystal if center_array is not a Coord object
+        if isinstance(center_array, (Coord)):
+            center = center_array
+        else:
+            center = Coord(center_array, cell=self, ctype='Crystal', units=self.units)
+        center_cart = center.to_cart()
+        val = np.einsum('ijkl,ijkl->ijk',self.r-center_cart,self.r-center_cart)
+        return val
+
+    def square_len_func(self,center_array=[0.,0.,0.]):
+        # assuming ctype=crystal if center_array is not a Coord object
+        if isinstance(center_array, (Coord)):
+            center = center_array
+        else:
+            center = Coord(center_array, cell=self, ctype='Crystal', units=self.units)
+        center_cart = center.to_cart()
+        sqr_len_func = Grid_Function_Base(self,griddata_3d = self.square_len_values(center_cart))
+        return sqr_len_func
+
+    def dist_grid_func(self,p=[0.,0.,0.]):
+        # return new Grid_Function_Base, the distance from grid point p
+        d_val = np.sqrt(self.square_len_values(p))
+        d_func = Grid_Function_Base(self,griddata_3d = d_val)
+        return d_func
+
 class Grid_Space(object):
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic', reciprocal_convention='mic_reciprocal'):
-        self.grid=Grid(at, nr, origin, units, convention)
-        self.reciprocal_grid = self.grid.reciprocal_Grid(reciprocal_convention)
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic_reciprocal'):
+        grid_real = Grid(at, nr, origin=origin, units=units, convention=convention)
+        self.grid=grid_real
+        grid_rec = grid_real.reciprocal_grid(reciprocal_convention=reciprocal_convention)
+        self.reciprocal_grid = grid_rec
 
 class Grid_Function_Base(object):
     # order of the spline interpolation
@@ -80,8 +117,7 @@ class Grid_Function_Base(object):
         self.plot_num = plot_num
         self.spl_coeffs = None
         if griddata_pp is None and griddata_3d is None:
-            # setting 0 func as default
-            self.values = np.zeros(shape=grid.nr)
+            self.values = None 
         elif griddata_pp is not None:
             self.values = np.reshape(griddata_pp, grid.nr, order='F')
         elif griddata_3d is not None:
@@ -92,25 +128,6 @@ class Grid_Function_Base(object):
         self.spl_coeffs = ndimage.spline_filter(
             padded_values, order=self.spl_order)
         return
-
-    def r_square(grid,center):
-        return np.einsum('ijkl,ijkl->ijk',grid.r-center,grid.r-center)
-
-    def dist_func(self,p=np.array([0.,0.,0.])):
-        """point is in crystal coordinates"""
-        # TODO return new Grid_Function_Base, the distance from grid point p
-        point = np.asarray(p)
-        cpoint = Coord(point,self.grid,ctype='Crystal',units=self.units)
-        cart_point = cpoint.to_cart().__multiply__(-1)
-        d_val = np.zeros(self.nr)
-        for i in range(self.nr[0]):
-            for j in range(self.nr[1]):
-                for k in range(self.nr[2]):
-                    the_g = self.g[i,j,k,:].__add__(cart_point)
-                    d_val[i,j,k] = np.sqrt(np.dot(the_g,the_g))
-        d_func = Grid_Function_Base(self.grid,self.plot_num,griddata_3d = d_val)
-
-        return d_func
 
     def get_3dinterpolation(self, nr_new):
         """
@@ -260,20 +277,20 @@ class Grid_Function_Base(object):
 class Grid_Function_Reciprocal(Grid_Function_Base):
 
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
-        grid=grid_space.reciprocal_grid
+        reciprocal_grid=grid_space.reciprocal_grid
         self.grid_space=grid_space
-        super().__init__(grid, plot_num, griddata_pp, griddata_3d)
+        super().__init__(reciprocal_grid, plot_num, griddata_pp, griddata_3d)
 
     def ifft(self):
-        return Grid_Function(grid_space, plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
 
 class Grid_Function(Grid_Function_Base):
 
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
+        self.grid_space=grid_space
         grid=grid_space.grid
         super().__init__(grid, plot_num, griddata_pp, griddata_3d)
-        self.grid_space=grid_space
 
     def fft(self):
-        return Grid_Function_Reciprocal(grid_space, plot_num, griddata_3d=np.fft.fftn(self.values)*self.grid.dV)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=np.fft.fftn(self.values)*self.grid.dV)
 

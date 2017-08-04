@@ -9,9 +9,9 @@ Classi
   ok  cell
   ok  grid (con centratura in 0 o MIC, spazio di punti)
   ok  grid_space (ha grid su sp reale e reciproco)
-    grid_func_base (funzioni su grid)
-    grid_func su sp reale (prende grid_space come spazio)
-    grid_func_rec su sp reciproco (prende grid_space come spazio)
+  ok  grid_func_base (funzioni su grid)
+  ok  grid_func su sp reale (prende grid_space come spazio)
+  ok  grid_func_rec su sp reciproco (prende grid_space come spazio)
 
 - MIC sia su spazio reale che su spazio reciproco?
 
@@ -44,3 +44,6 @@ su grid_func:
             ottengo k(z)=ifft(K)*g(z)*c
 
     k.Int per avere Integrale su grid (somma valori di k su punti grid)
+
+vogliamo funzione esponenziale, funzione gaussiana
+combinazione lineare di funzioni
