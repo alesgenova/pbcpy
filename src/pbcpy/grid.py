@@ -73,7 +73,7 @@ class Grid(Cell):
         else:
             return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
-    def square_len_values(self,center_array):
+    def square_dist_values(self,center_array):
         # assuming ctype=crystal if center_array is not a Coord object
         if isinstance(center_array, (Coord)):
             center = center_array
@@ -83,22 +83,6 @@ class Grid(Cell):
         val = np.einsum('ijkl,ijkl->ijk',self.r-center_cart,self.r-center_cart)
         return val
 
-    def square_len_func(self,center_array=[0.,0.,0.]):
-        # assuming ctype=crystal if center_array is not a Coord object
-        if isinstance(center_array, (Coord)):
-            center = center_array
-        else:
-            center = Coord(center_array, cell=self, ctype='Crystal', units=self.units)
-        center_cart = center.to_cart()
-        sqr_len_func = Grid_Function_Base(self,griddata_3d = self.square_len_values(center_cart))
-        return sqr_len_func
-
-    def dist_grid_func(self,p=[0.,0.,0.]):
-        # return new Grid_Function_Base, the distance from grid point p
-        d_val = np.sqrt(self.square_len_values(p))
-        d_func = Grid_Function_Base(self,griddata_3d = d_val)
-        return d_func
-
 class Grid_Space(object):
 
     def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic_reciprocal'):
@@ -106,6 +90,26 @@ class Grid_Space(object):
         self.grid=grid_real
         grid_rec = grid_real.reciprocal_grid(reciprocal_convention=reciprocal_convention)
         self.reciprocal_grid = grid_rec
+
+    def dist_rec_func(self,p=[0.,0.,0.]):
+        grid = self.reciprocal_grid
+        values = np.sqrt(grid.square_dist_values(p))
+        return Grid_Function_Reciprocal(self,griddata_3d = values)
+
+    def dist_func(self,p=[0.,0.,0.]):
+        grid = self.grid
+        values = np.sqrt(grid.square_dist_values(p))
+        return Grid_Function(self,griddata_3d = values)
+
+    def sqr_dist_rec_func(self,p=[0.,0.,0.]):
+        grid = self.reciprocal_grid
+        values = grid.square_dist_values(p)
+        return Grid_Function_Reciprocal(self,griddata_3d = values)
+
+    def sqr_dist_func(self,p=[0.,0.,0.]):
+        grid = self.grid
+        values = grid.square_dist_values(p)
+        return Grid_Function(self,griddata_3d = values)
 
 class Grid_Function_Base(object):
     # order of the spline interpolation
@@ -117,11 +121,51 @@ class Grid_Function_Base(object):
         self.plot_num = plot_num
         self.spl_coeffs = None
         if griddata_pp is None and griddata_3d is None:
-            self.values = None 
+            self.values = None
         elif griddata_pp is not None:
             self.values = np.reshape(griddata_pp, grid.nr, order='F')
         elif griddata_3d is not None:
             self.values = griddata_3d
+
+    def integral(self):
+        return np.einsum('ijk->',self.values)
+
+    def sumFunc(self,g):
+        if isinstance(g, type(self)):
+            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values+g.values)
+        else:
+            return Exception
+
+    def dotFunc(self,g):
+        if isinstance(g, type(self)):
+            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values*g.values)
+        else:
+            return Exception
+
+    def expCnst(self,c=1):
+        if isinstance(c, (int,float,complex)):
+            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values**c)
+        else:
+            return Exception
+
+    def dotCnst(self,c=1):
+        if isinstance(c, (int,float,complex)):
+            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values*c)
+        else:
+            return Exception
+
+    def sumCnst(self,c=0):
+        if isinstance(c, (int,float,complex)):
+            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values+c)
+        else:
+            return Exception
+
+    def linear_combination(self,g,a,b):
+        if isinstance(g, type(self)) and isinstance(a, (int,float,complex)) and isinstance(b, (int,float,complex)):
+            values = (a*self.values)+(b*g.values)
+            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=values)
+        else:
+            return Exception
 
     def _calc_spline(self):
         padded_values = np.pad(self.values, ((self.spl_order,)), mode='wrap')

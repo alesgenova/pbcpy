@@ -8,31 +8,40 @@ implementare:
 Classi
   ok  cell
   ok  grid (con centratura in 0 o MIC, spazio di punti)
-  ok  grid_space (ha grid su sp reale e reciproco)
+  ok  grid_space (ha grid su sp reale + grid su sp reciproco)
   ok  grid_func_base (funzioni su grid)
   ok  grid_func su sp reale (prende grid_space come spazio)
   ok  grid_func_rec su sp reciproco (prende grid_space come spazio)
 
-- MIC sia su spazio reale che su spazio reciproco?
+- MIC sia su spazio reale che su spazio reciproco (per ora no)?
 
 - su Grid:
-    ok a) invgrid
+    ok a) invgrid (ritorna grid su sp reciproco)
+    ok b) metodo "funzione distanza"(p (punto della griglia (default: coordinate crystal)) crea new grid_func_base f(z)=dist(z,p) (cartesian)
+    ok b) metodo "funzione quadrato della distanza"(p (punto della griglia (default: coordinate crystal)) crea new grid_func_base f(z)=<z,p> (cartesian coordinates)
+    c) funzione gaussiana centrata su punto p (parametri: p e sigma)
+    d) exp
+
+- su Grid_Space:
+
+    replicare su grid e reciprocal grid i metodi di generazione delle funzioni su grid in modo che siano funzioni del giusto tipo (Grid_Function o Grid_Function_Rec)
 
 - su Grid_func_base:
-    a) metodo "Int" per avere il valore della somma di f sui punti della grid
-    b) metodo self.dotFunc(f) -> self(x)=self(x)*f(x)
-    c) metodo self.sumFunc(f) -> self(x)=self(x)+f(x)
-    d) metodo self.dotCnst(c) -> self(x)=self(x)*c
-    e) metodo self.sumCnst(c) -> self(x)=self(x)+c
-    ok f) metodo "funzione distanza"(p (punto della griglia (in coordinate crystal)) crea new grid_func_base f(z)=dist(z,p) (cartesian)
+    ok a) metodo "integral" per avere il valore della somma di f sui punti della grid
+    ok b) metodo self.dotFunc(f) -> self(x)=self(x)*f(x)
+    ok c) metodo self.sumFunc(f) -> self(x)=self(x)+f(x)
+    ok d) metodo self.dotCnst(c) -> self(x)=self(x)*c
+    ok e) metodo self.sumCnst(c) -> self(x)=self(x)+c
+    ok f) metodo self.expCnst(c) -> self(x)=self(x)**c
+    ok g) metodo self.linearComb(f,a,b) -> self(x)=a*self(x)+b*f(x) combinazione lineare di funzioni
 
 devo definire grid_func su real e grid_func_rec su reciprocal di grid_space (unico "spazio" e' grid_space)
 
 su grid_func_rec:
-    .ifft() -> new grid_func
+    ok .ifft() -> new grid_func
 
 su grid_func:
-    .fft() -> new grid_func_rec
+    ok .fft() -> new grid_func_rec
     .apply_trasf(grid_func_rec,R,R,R) -> new grid_func
         input:
             self=f(z) su spazio reale, a, b e c (in R), u(q) su spazio reciproco
@@ -45,5 +54,3 @@ su grid_func:
 
     k.Int per avere Integrale su grid (somma valori di k su punti grid)
 
-vogliamo funzione esponenziale, funzione gaussiana
-combinazione lineare di funzioni
