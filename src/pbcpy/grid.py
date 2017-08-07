@@ -73,7 +73,7 @@ class Grid(Cell):
         else:
             return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
-    def square_dist_values(self,center_array):
+    def square_dist_values(self,center_array=[0.,0.,0.]):
         # assuming ctype=crystal if center_array is not a Coord object
         if isinstance(center_array, (Coord)):
             center = center_array
@@ -83,33 +83,22 @@ class Grid(Cell):
         val = np.einsum('ijkl,ijkl->ijk',self.r-center_cart,self.r-center_cart)
         return val
 
+    def dist_values(self,center_array=[0.,0.,0.]):
+        return np.sqrt(self.square_dist_values(center_array))
+
+    def gaussianValues(self,alpha,center_array=[0.,0.,0.]):
+        if isinstance(alpha, (int,float,complex)):
+            return (1.0/(alpha*np.sqrt(2.0*np.pi)))*np.exp(-self.square_dist_values(center_array)/(2.0*alpha**2))
+        else:
+            return Exception
+
 class Grid_Space(object):
 
     def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic_reciprocal'):
-        grid_real = Grid(at, nr, origin=origin, units=units, convention=convention)
-        self.grid=grid_real
-        grid_rec = grid_real.reciprocal_grid(reciprocal_convention=reciprocal_convention)
-        self.reciprocal_grid = grid_rec
 
-    def dist_rec_func(self,p=[0.,0.,0.]):
-        grid = self.reciprocal_grid
-        values = np.sqrt(grid.square_dist_values(p))
-        return Grid_Function_Reciprocal(self,griddata_3d = values)
+        self.grid = Grid(at, nr, origin=origin, units=units, convention=convention)
 
-    def dist_func(self,p=[0.,0.,0.]):
-        grid = self.grid
-        values = np.sqrt(grid.square_dist_values(p))
-        return Grid_Function(self,griddata_3d = values)
-
-    def sqr_dist_rec_func(self,p=[0.,0.,0.]):
-        grid = self.reciprocal_grid
-        values = grid.square_dist_values(p)
-        return Grid_Function_Reciprocal(self,griddata_3d = values)
-
-    def sqr_dist_func(self,p=[0.,0.,0.]):
-        grid = self.grid
-        values = grid.square_dist_values(p)
-        return Grid_Function(self,griddata_3d = values)
+        self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention)
 
 class Grid_Function_Base(object):
     # order of the spline interpolation
@@ -128,42 +117,46 @@ class Grid_Function_Base(object):
             self.values = griddata_3d
 
     def integral(self):
-        return np.einsum('ijk->',self.values)
+        return np.einsum('ijk->',self.values)*self.grid.dV
 
-    def sumFunc(self,g):
+    def sumValues(self,g):
         if isinstance(g, type(self)):
-            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values+g.values)
+            return self.values+g.values
         else:
             return Exception
 
-    def dotFunc(self,g):
+    def dotValues(self,g):
         if isinstance(g, type(self)):
-            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values*g.values)
+            return self.values*g.values
+        elif isinstance(g, type(int,float,complex)):
+            return self.values*g
         else:
             return Exception
 
-    def expCnst(self,c=1):
+    def expValues(self):
+        return np.exp(self.values)
+
+    def exponentiationCnstValues(self,c=1):
         if isinstance(c, (int,float,complex)):
-            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values**c)
+            return self.values**c
         else:
             return Exception
 
-    def dotCnst(self,c=1):
+    def dotCnstValues(self,c=1):
         if isinstance(c, (int,float,complex)):
-            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values*c)
+            return self.values*c
         else:
             return Exception
 
-    def sumCnst(self,c=0):
+    def sumCnstValues(self,c=0):
         if isinstance(c, (int,float,complex)):
-            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=self.values+c)
+            return self.values+c
         else:
             return Exception
 
-    def linear_combination(self,g,a,b):
+    def linear_combinationValues(self,g,a,b):
         if isinstance(g, type(self)) and isinstance(a, (int,float,complex)) and isinstance(b, (int,float,complex)):
-            values = (a*self.values)+(b*g.values)
-            return Grid_Function_Base(self.grid,plot_num=self.plot_num,griddata_3d=values)
+            return (a*self.values)+(b*g.values)
         else:
             return Exception
 
@@ -190,7 +183,7 @@ class Grid_Function_Base(object):
         new_values = ndimage.map_coordinates(
             self.spl_coeffs, [X, Y, Z], mode='wrap')
         new_grid = Grid(self.grid.at, nr_new, units=self.grid.units)
-        return Grid_Function_Base(new_grid, self.plot_num, griddata_3d=new_values)
+        return self.__class__(new_grid, self.plot_num, griddata_3d=new_values)
 
     def get_value_at_points(self, points):
         """points is in crystal coordinates"""
@@ -315,26 +308,171 @@ class Grid_Function_Base(object):
         elif ndim == 3:
             values = values.reshape((a, b, c))
 
-        return Grid_Function_Base(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)
+        return self.__class__(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)
 
 
 class Grid_Function_Reciprocal(Grid_Function_Base):
 
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
-        reciprocal_grid=grid_space.reciprocal_grid
-        self.grid_space=grid_space
-        super().__init__(reciprocal_grid, plot_num, griddata_pp, griddata_3d)
+        self.grid_space = grid_space
+        self.grid = grid_space.reciprocal_grid
+        super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def ifft(self):
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
 
+    def exp(self):
+        values = self.expValues()
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def dot(self,g):
+        values = self.dotValues(g)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def sum(self,g):
+        values = self.sumValues(g)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def exponentiationCnst(self,c=1):
+        values = self.exponentiationCnstValues(c)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def dotCnst(self,c=1):
+        values = self.dotCnstValues(c)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def sumCnst(self,c=0):
+        values = self.sumCnstValues(c)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def linear_combination(self,g,a,b):
+        values = self.linear_combinationValues(g,a,b)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def dist(self,p=[0.,0.,0.]):
+        values = self.grid.dist_values(p)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def sqr_dist(self,p=[0.,0.,0.]):
+        values = self.grid.square_dist_values(p)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def real(self):
+        values = np.real(self.values)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def divide_func(self,g):
+        if isinstance(g, Grid_Function_Reciprocal):
+            values = np.divide(self.values, g.values, out=np.zeros_like(self.values), where=g.values!=0)
+            return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+        else:
+            print('Bad input on divide method')
+            print("g type = %s" % type(g))
+            return Exception
+
+    def invert(self,g=1.):
+        if isinstance(g, (int,float,complex)):
+            values = np.divide(g, self.values, out=np.zeros_like(self.values), where=self.values!=0)
+            return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+        else:
+            print('Bad input on invert method')
+            print("g type = %s" % type(g))
+            return Exception
+
 class Grid_Function(Grid_Function_Base):
 
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
-        self.grid_space=grid_space
-        grid=grid_space.grid
-        super().__init__(grid, plot_num, griddata_pp, griddata_3d)
+        self.grid_space = grid_space
+        self.grid = grid_space.grid
+        super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def fft(self):
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=np.fft.fftn(self.values)*self.grid.dV)
 
+    def exp(self):
+        values = self.expValues()
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def dot(self,g):
+        values = self.dotValues(g)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def sum(self,g):
+        values = self.sumValues(g)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def exponentiationCnst(self,c=1):
+        values = self.exponentiationCnstValues(c)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def dotCnst(self,c=1):
+        values = self.dotCnstValues(c)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def sumCnst(self,c=0):
+        values = self.sumCnstValues(c)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def linear_combination(self,g,a,b):
+        values = self.linear_combinationValues(g,a,b)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def dist(self,p=[0.,0.,0.]):
+        values = self.grid.dist_values(p)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def sqr_dist(self,p=[0.,0.,0.]):
+        values = self.grid.square_dist_values(p)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def gaussian(self,alpha,center_array=[0.,0.,0.]):
+        values = self.grid.gaussianValues(alpha,center_array)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def real(self):
+        values = np.real(self.values)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
+    def divide_func(self,g):
+        if isinstance(g, Grid_Function):
+            values = np.divide(self.values, g.values, out=np.zeros_like(self.values), where=g.values!=0)
+            return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+        else:
+            print('Bad input on divide_func method')
+            print("g type = %s" % type(g))
+            return Exception
+
+    def invert(self,g=1.):
+        if isinstance(g, (int,float,complex)):
+            values = np.divide(g, self.values, out=np.zeros_like(self.values), where=self.values!=0)
+            return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+        else:
+            print('Bad input on invert method')
+            print("g type = %s" % type(g))
+            return Exception
+
+    def energy_density(self,kernel,a,b,c=1):
+        if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(b, (int,float,complex)) and isinstance(c, (int,float,complex)):
+            first_exp = self.exponentiationCnst(a)
+            second_exp = self.exponentiationCnst(b)
+            second_exp_tranf = second_exp.fft()
+            prod = second_exp_tranf.dot(kernel)
+            inverse_transf = prod.ifft()
+            return inverse_transf.dot(first_exp).dotCnst(c).real()
+        else:
+            print('Bad input on energy_density method')
+            print("kernel type = %s" % type(kernel))
+            return Exception
+
+    def energy_potential(self,kernel,a,c=1.):
+        if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
+        #if isinstance(kernel, (type(Grid_Function_Reciprocal),int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
+            exp = self.exponentiationCnst(a)
+            exp_tranf = exp.fft()
+            prod = exp_tranf.dot(kernel)
+            inverse_transf = prod.ifft()
+            return inverse_transf.dotCnst(c).real()
+        else:
+            print('Bad input on energy_potential method')
+            print("kernel type = %s" % type(kernel))
+            return Exception

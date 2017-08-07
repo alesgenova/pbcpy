@@ -86,6 +86,9 @@ class Cell(object):
             return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
 
     def reciprocal_cell(self):
+        """
+        Returns a new cell, the reciprocal cell of self.
+        """
         bg = np.linalg.inv(self.at)
         return Cell(at=bg,units=self.units,origin=np.array([0.,0.,0.]))
 
