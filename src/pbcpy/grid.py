@@ -4,7 +4,24 @@ from .base import Cell, Coord
 
 class Grid(Cell):
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic'):
+    '''
+    Object representing a grid (Cell (lattice) plus discretization)
+    extends Cell
+
+    Attributes
+    ----------
+    nr : array of numbers used for discretization
+
+    nnr : total number of subcells
+
+    dV : volume of a subcell
+
+    r : vectors in cartesian coordinates identifying the subcells
+
+    s : vectors in crystal coordinates identifying the subcells
+    '''
+
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic', conv_type='physics'):
         super().__init__(at, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
@@ -17,12 +34,12 @@ class Grid(Cell):
         if self.r is None:
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
-            if convention == 'mic' or convention == 'mic_reciprocal':
+            if convention == 'mic' or convention == 'mic_scaled':
                 ax = []
                 for i in range(3):
                     # use fftfreq function so we don't have to worry about odd or even number of points
                     dd=1
-                    if convention == 'mic_reciprocal':
+                    if convention == 'mic_scaled':
                         dd=1/self.nr[i]
                     ax.append(np.fft.fftfreq(self.nr[i],d=dd))
                     work = np.zeros(self.nr[i])
@@ -38,8 +55,24 @@ class Grid(Cell):
             self.s = Coord(S, cell=self, ctype='Crystal')
             self.r = self.s.to_cart()
 
-    def reciprocal_grid(self,reciprocal_convention='mic_reciprocal'):
-        rec_cell = self.reciprocal_cell()
+    def reciprocal_grid(self, reciprocal_convention='mic', \
+            conv_type='', scale=[1.,1.,1.]):
+        """
+            Returns a new Grid object (the reciprocal grid)
+            The Cell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        rec_cell = self.reciprocal_cell(scale=scale,convention=conv_type)
         rec_grid = Grid(rec_cell.at,self.nr,units=self.units,convention=reciprocal_convention)
         return rec_grid
 
@@ -60,6 +93,9 @@ class Grid(Cell):
         return mask
 
     def crystal_coord_array(self,array):
+        '''
+        Return a Coord in crystal coordinates
+        '''
         if isinstance(array, (Coord)):
             #TODO check units
             return array.to_crys()
@@ -67,6 +103,9 @@ class Grid(Cell):
             return Coord(array, cell=self, ctype='Crystal', units=self.units)
 
     def cartesian_coord_array(self,array):
+        '''
+        Return a Coord in cartesian coordinates
+        '''
         if isinstance(array, (Coord)):
             #TODO check units
             return array.to_cart()
@@ -74,6 +113,9 @@ class Grid(Cell):
             return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
     def square_dist_values(self,center_array=[0.,0.,0.]):
+        '''
+        Return a ndarray with square distance from center_array of grid points in cartesian coordinates
+        '''
         # assuming ctype=crystal if center_array is not a Coord object
         if isinstance(center_array, (Coord)):
             center = center_array
@@ -84,6 +126,9 @@ class Grid(Cell):
         return val
 
     def dist_values(self,center_array=[0.,0.,0.]):
+        '''
+        Return a ndarray with distance from center_array of grid points in cartesian coordinates
+        '''
         return np.sqrt(self.square_dist_values(center_array))
 
     def gaussianValues(self,alpha,center_array=[0.,0.,0.]):
@@ -94,13 +139,50 @@ class Grid(Cell):
 
 class Grid_Space(object):
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic_reciprocal'):
+    '''
+    Object representing a grid (Cell (lattice) plus discretization)
+    together with its reciprocal grid
+
+    Attributes
+    ----------
+    grid : Grid
+        grid on direct space
+
+    reciprocal_grid : Grid
+        grid on reciprocal space
+
+    nr : array of numbers used for discretization
+
+    nnr : total number of subcells
+
+    '''
+
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic', conv_type='physics'):
 
         self.grid = Grid(at, nr, origin=origin, units=units, convention=convention)
-
-        self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention)
+        self.nr = self.grid.nr
+        self.nnr = self.grid.nnr
+        self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention, conv_type=conv_type, scale=self.nr)
 
 class Grid_Function_Base(object):
+    '''
+    Object representing a function on a grid (Cell (lattice) plus discretization)
+
+    Attributes
+    ----------
+    grid : Grid
+        Represent the domain of the function
+
+    ndim : number of dimensions of the grid
+
+    plot_num :
+
+    spl_coeffs : 
+
+    values : ndarray
+        the values of the function
+
+    '''
     # order of the spline interpolation
     spl_order = 3
 
@@ -117,44 +199,45 @@ class Grid_Function_Base(object):
             self.values = griddata_3d
 
     def integral(self):
+        ''' Returns the integral of self '''
         return np.einsum('ijk->',self.values)*self.grid.dV
 
     def sumValues(self,g):
+        ''' Returns an ndarray with f(x) + g(x) '''
         if isinstance(g, type(self)):
             return self.values+g.values
         else:
             return Exception
 
     def dotValues(self,g):
+        ''' Returns an ndarray with f(x)*g (g can be a function) '''
         if isinstance(g, type(self)):
             return self.values*g.values
-        elif isinstance(g, type(int,float,complex)):
+        elif isinstance(g, (int,float,complex)):
             return self.values*g
         else:
             return Exception
 
     def expValues(self):
+        ''' Returns exp(f(x)) '''
         return np.exp(self.values)
 
     def exponentiationCnstValues(self,c=1):
+        ''' Returns f(x)^c '''
         if isinstance(c, (int,float,complex)):
             return self.values**c
         else:
             return Exception
 
-    def dotCnstValues(self,c=1):
-        if isinstance(c, (int,float,complex)):
-            return self.values*c
-        else:
-            return Exception
-
     def sumCnstValues(self,c=0):
+        ''' Returns f(x)+c '''
         if isinstance(c, (int,float,complex)):
             return self.values+c
         else:
             return Exception
 
     def linear_combinationValues(self,g,a,b):
+        ''' Returns a*f(x)+b*g(x) '''
         if isinstance(g, type(self)) and isinstance(a, (int,float,complex)) and isinstance(b, (int,float,complex)):
             return (a*self.values)+(b*g.values)
         else:
@@ -312,6 +395,17 @@ class Grid_Function_Base(object):
 
 
 class Grid_Function_Reciprocal(Grid_Function_Base):
+    '''
+    Object representing a function on reciprocal space (the reciprocal grid in a grid space is the domain), extends Grid_Function_Base (functions on generic grid)
+
+    Attributes
+    ----------
+    grid : Grid
+        Represent the domain of the function
+
+    grid_space : Grid_Space
+
+    '''
 
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
         self.grid_space = grid_space
@@ -319,6 +413,8 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def ifft(self):
+        # Discrete Fourier Transform - Standard FFTs - Compute the N(=3)-dimensional inverse discrete Fourier Transform
+        # OUT is a new Grid_Function
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
 
     def exp(self):
@@ -330,15 +426,21 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sum(self,g):
+        '''
+        Implements f(x)+g(x)
+        '''
         values = self.sumValues(g)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def exponentiationCnst(self,c=1):
+        '''
+        Implements f(x)^c
+        '''
         values = self.exponentiationCnstValues(c)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def dotCnst(self,c=1):
-        values = self.dotCnstValues(c)
+        values = self.dotValues(c)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sumCnst(self,c=0):
@@ -380,13 +482,17 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
             return Exception
 
 class Grid_Function(Grid_Function_Base):
-
+    """
+    Functions on real space (grid), extends Grid_Function_Base (functions on generic grid)
+    """
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
         self.grid_space = grid_space
         self.grid = grid_space.grid
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def fft(self):
+        # Discrete Fourier Transform - Standard FFTs - Compute the N(=3)-dimensional discrete Fourier Transform
+        # OUT is a new Grid_Function_Reciprocal
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=np.fft.fftn(self.values)*self.grid.dV)
 
     def exp(self):
@@ -406,7 +512,7 @@ class Grid_Function(Grid_Function_Base):
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def dotCnst(self,c=1):
-        values = self.dotCnstValues(c)
+        values = self.dotValues(c)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sumCnst(self,c=0):
@@ -466,7 +572,6 @@ class Grid_Function(Grid_Function_Base):
 
     def energy_potential(self,kernel,a,c=1.):
         if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
-        #if isinstance(kernel, (type(Grid_Function_Reciprocal),int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
             exp = self.exponentiationCnst(a)
             exp_tranf = exp.fft()
             prod = exp_tranf.dot(kernel)

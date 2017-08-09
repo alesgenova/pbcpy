@@ -85,11 +85,29 @@ class Cell(object):
         else:
             return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
 
-    def reciprocal_cell(self):
+    def reciprocal_cell(self,scale=[1.,1.,1.],convention=''):
         """
-        Returns a new cell, the reciprocal cell of self.
+            Returns a new cell, the reciprocal cell of self
+            The Cell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
         """
-        bg = np.linalg.inv(self.at)
+        # TODO define in constants module hbar value for all units allowed
+        bg_not_scaled = np.linalg.inv(self.at)
+        if convention == 'physics':
+            bg = np.einsum('ij,j->ij',2*np.pi*bg_not_scaled,scale)
+        else:
+            bg = np.einsum('ij,j->ij',bg_not_scaled,scale)
+
         return Cell(at=bg,units=self.units,origin=np.array([0.,0.,0.]))
 
 
