@@ -93,9 +93,7 @@ class Grid(Cell):
         return mask
 
     def crystal_coord_array(self,array):
-        '''
-        Return a Coord in crystal coordinates
-        '''
+        '''Return a Coord in crystal coordinates'''
         if isinstance(array, (Coord)):
             #TODO check units
             return array.to_crys()
@@ -103,9 +101,7 @@ class Grid(Cell):
             return Coord(array, cell=self, ctype='Crystal', units=self.units)
 
     def cartesian_coord_array(self,array):
-        '''
-        Return a Coord in cartesian coordinates
-        '''
+        '''Return a Coord in cartesian coordinates'''
         if isinstance(array, (Coord)):
             #TODO check units
             return array.to_cart()
@@ -113,8 +109,9 @@ class Grid(Cell):
             return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
     def square_dist_values(self,center_array=[0.,0.,0.]):
-        '''
-        Return a ndarray with square distance from center_array of grid points in cartesian coordinates
+        '''Return a ndarray with
+        square distance from center_array of
+        grid points in cartesian coordinates
         '''
         # assuming ctype=crystal if center_array is not a Coord object
         if isinstance(center_array, (Coord)):
@@ -126,12 +123,18 @@ class Grid(Cell):
         return val
 
     def dist_values(self,center_array=[0.,0.,0.]):
-        '''
-        Return a ndarray with distance from center_array of grid points in cartesian coordinates
+        '''Return a ndarray with
+        the distance from center_array of
+        grid points in cartesian coordinates
         '''
         return np.sqrt(self.square_dist_values(center_array))
 
     def gaussianValues(self,alpha,center_array=[0.,0.,0.]):
+        '''Return a ndarray with
+        the values of the gaussian
+        (1/(alpha*sqrt(2pi)))*exp(-square_dist_values(center_array)/(2.0*alpha**2))
+        centered on center_array
+        '''
         if isinstance(alpha, (int,float,complex)):
             return (1.0/(alpha*np.sqrt(2.0*np.pi)))*np.exp(-self.square_dist_values(center_array)/(2.0*alpha**2))
         else:
@@ -140,7 +143,8 @@ class Grid(Cell):
 class Grid_Space(object):
 
     '''
-    Object representing a grid (Cell (lattice) plus discretization)
+    Object representing a grid
+    (Cell (lattice) plus discretization)
     together with its reciprocal grid
 
     Attributes
@@ -166,7 +170,8 @@ class Grid_Space(object):
 
 class Grid_Function_Base(object):
     '''
-    Object representing a function on a grid (Cell (lattice) plus discretization)
+    Object representing a function on a grid
+    (Cell (lattice) plus discretization)
 
     Attributes
     ----------
@@ -396,7 +401,9 @@ class Grid_Function_Base(object):
 
 class Grid_Function_Reciprocal(Grid_Function_Base):
     '''
-    Object representing a function on reciprocal space (the reciprocal grid in a grid space is the domain), extends Grid_Function_Base (functions on generic grid)
+    Object representing a function on reciprocal space (the reciprocal grid in a grid space is the domain)
+    
+    extends Grid_Function_Base (functions on generic grid)
 
     Attributes
     ----------
@@ -413,57 +420,79 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def ifft(self):
-        # Discrete Fourier Transform - Standard FFTs - Compute the N(=3)-dimensional inverse discrete Fourier Transform
-        # OUT is a new Grid_Function
+        '''
+        Implements the Inverse Discrete Fourier Transform
+        - Standard FFTs -
+        Compute the N(=3)-dimensional inverse discrete Fourier Transform
+        Returns a new Grid_Function
+        '''
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
 
     def exp(self):
+        ''' Implements exp(f(x))
+        Returns a new Grid_Function_Reciprocal '''
         values = self.expValues()
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def dot(self,g):
+        '''Implements f(x)*g(x) or f(x)*g number
+        Returns a new Grid_Function_Reciprocal'''
         values = self.dotValues(g)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sum(self,g):
-        '''
-        Implements f(x)+g(x)
-        '''
+        '''Implements f(x)+g(x)
+        Returns a new Grid_Function_Reciprocal'''
         values = self.sumValues(g)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def exponentiationCnst(self,c=1):
-        '''
-        Implements f(x)^c
-        '''
+        '''Implements f(x)^c
+        Returns a new Grid_Function_Reciprocal'''
         values = self.exponentiationCnstValues(c)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
-    def dotCnst(self,c=1):
-        values = self.dotValues(c)
-        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
-
     def sumCnst(self,c=0):
+        '''Implements f(x)+c
+        Returns a new Grid_Function_Reciprocal'''
         values = self.sumCnstValues(c)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def linear_combination(self,g,a,b):
+        ''' Implements a*f(x)+b*g(x) 
+        Returns a new Grid_Function_Reciprocal'''
         values = self.linear_combinationValues(g,a,b)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def dist(self,p=[0.,0.,0.]):
+        '''Returns a new Grid_Function_Reciprocal,
+        the distance from p of the grid points
+        in cartesian coordinates'''
         values = self.grid.dist_values(p)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sqr_dist(self,p=[0.,0.,0.]):
+        '''Returns a new Grid_Function_Reciprocal,
+        the square distance from p of the grid points
+        in cartesian coordinates'''
         values = self.grid.square_dist_values(p)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def real(self):
+        '''Returns a new Grid_Function_Reciprocal
+        with the real part of f(x)'''
         values = np.real(self.values)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
+    def imag(self):
+        '''Returns a new Grid_Function_Reciprocal
+        with the imaginary part of f(x)'''
+        values = np.imag(self.values)
+        return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
+
     def divide_func(self,g):
+        '''Returns a new Grid_Function_Reciprocal
+        with f(x)/g(x), if g(x)==0 -> 0'''
         if isinstance(g, Grid_Function_Reciprocal):
             values = np.divide(self.values, g.values, out=np.zeros_like(self.values), where=g.values!=0)
             return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
@@ -473,6 +502,8 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
             return Exception
 
     def invert(self,g=1.):
+        '''Returns a new Grid_Function_Reciprocal
+        with g/f(x), if f(x)==0 -> 0'''
         if isinstance(g, (int,float,complex)):
             values = np.divide(g, self.values, out=np.zeros_like(self.values), where=self.values!=0)
             return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
@@ -482,64 +513,102 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
             return Exception
 
 class Grid_Function(Grid_Function_Base):
-    """
-    Functions on real space (grid), extends Grid_Function_Base (functions on generic grid)
-    """
+    '''
+    Object representing a function on real space (the real grid in a grid space is the domain)
+    
+    extends Grid_Function_Base (functions on generic grid)
+
+    Attributes
+    ----------
+    grid : Grid
+        Represent the domain of the function
+
+    grid_space : Grid_Space'''
+
     def __init__(self, grid_space, plot_num=0, griddata_pp=None, griddata_3d=None):
         self.grid_space = grid_space
         self.grid = grid_space.grid
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def fft(self):
-        # Discrete Fourier Transform - Standard FFTs - Compute the N(=3)-dimensional discrete Fourier Transform
-        # OUT is a new Grid_Function_Reciprocal
+        ''' Implements the Discrete Fourier Transform
+        - Standard FFTs -
+        Compute the N(=3)-dimensional discrete Fourier Transform
+        Returns a new Grid_Function_Reciprocal
+        '''
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=np.fft.fftn(self.values)*self.grid.dV)
 
     def exp(self):
+        ''' Implements exp(f(x))
+        Returns a new Grid_Function'''
         values = self.expValues()
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def dot(self,g):
+        '''Implements f(x)*g(x) or f(x)*g number
+        Returns a new Grid_Function'''
         values = self.dotValues(g)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sum(self,g):
+        '''Implements f(x)+g(x)
+        Returns a new Grid_Function'''
         values = self.sumValues(g)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def exponentiationCnst(self,c=1):
+        '''Implements f(x)^c
+        Returns a new Grid_Function'''
         values = self.exponentiationCnstValues(c)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
-    def dotCnst(self,c=1):
-        values = self.dotValues(c)
-        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
-
     def sumCnst(self,c=0):
+        '''Implements f(x)+c
+        Returns a new Grid_Function'''
         values = self.sumCnstValues(c)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def linear_combination(self,g,a,b):
+        ''' Implements a*f(x)+b*g(x) 
+        Returns a new Grid_Function'''
         values = self.linear_combinationValues(g,a,b)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def dist(self,p=[0.,0.,0.]):
+        '''Returns a new Grid_Function,
+        the distance from p of the grid points
+        in cartesian coordinates'''
         values = self.grid.dist_values(p)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def sqr_dist(self,p=[0.,0.,0.]):
+        '''Returns a new Grid_Function,
+        the square distance from p of the grid points
+        in cartesian coordinates'''
         values = self.grid.square_dist_values(p)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def gaussian(self,alpha,center_array=[0.,0.,0.]):
+        '''Returns a new Grid_Function,
+        the gaussian (see grid.gaussianValues for the details)
+        centered in center_array'''
         values = self.grid.gaussianValues(alpha,center_array)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def real(self):
+        '''Returns a new Grid_Function
+        with the real part of f(x)'''
         values = np.real(self.values)
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+    def imag(self):
+        '''Returns a new Grid_Function
+        with the imaginary part of f(x)'''
+        values = np.imag(self.values)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def divide_func(self,g):
+        '''Returns a new Grid_Function
+        with f(x)/g(x), if g(x)==0 -> 0'''
         if isinstance(g, Grid_Function):
             values = np.divide(self.values, g.values, out=np.zeros_like(self.values), where=g.values!=0)
             return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
@@ -549,6 +618,8 @@ class Grid_Function(Grid_Function_Base):
             return Exception
 
     def invert(self,g=1.):
+        '''Returns a new Grid_Function
+        with g/f(x), if f(x)==0 -> 0'''
         if isinstance(g, (int,float,complex)):
             values = np.divide(g, self.values, out=np.zeros_like(self.values), where=self.values!=0)
             return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
@@ -558,25 +629,31 @@ class Grid_Function(Grid_Function_Base):
             return Exception
 
     def energy_density(self,kernel,a,b,c=1):
+        '''Returns a new Grid_Function
+        real(ifft(fft(f(x)^b)*kernel)*f(x)^a*c)'''
+
         if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(b, (int,float,complex)) and isinstance(c, (int,float,complex)):
             first_exp = self.exponentiationCnst(a)
             second_exp = self.exponentiationCnst(b)
             second_exp_tranf = second_exp.fft()
             prod = second_exp_tranf.dot(kernel)
             inverse_transf = prod.ifft()
-            return inverse_transf.dot(first_exp).dotCnst(c).real()
+            return inverse_transf.dot(first_exp).dot(c).real()
         else:
             print('Bad input on energy_density method')
             print("kernel type = %s" % type(kernel))
             return Exception
 
     def energy_potential(self,kernel,a,c=1.):
+        '''Returns a new Grid_Function
+        real(ifft(fft(f(x)^a)*kernel)*c)'''
+
         if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
             exp = self.exponentiationCnst(a)
             exp_tranf = exp.fft()
             prod = exp_tranf.dot(kernel)
             inverse_transf = prod.ifft()
-            return inverse_transf.dotCnst(c).real()
+            return inverse_transf.dot(c).real()
         else:
             print('Bad input on energy_potential method')
             print("kernel type = %s" % type(kernel))
