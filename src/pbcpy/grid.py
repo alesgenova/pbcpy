@@ -21,7 +21,7 @@ class Grid(Cell):
     s : vectors in crystal coordinates identifying the subcells
     '''
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic', conv_type='physics'):
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic'):
         super().__init__(at, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
@@ -56,7 +56,7 @@ class Grid(Cell):
             self.r = self.s.to_cart()
 
     def reciprocal_grid(self, reciprocal_convention='mic', \
-            conv_type='', scale=[1.,1.,1.]):
+            conv_type='physics', scale=[1.,1.,1.]):
         """
             Returns a new Grid object (the reciprocal grid)
             The Cell is scaled properly to include
@@ -129,7 +129,7 @@ class Grid(Cell):
         '''
         return np.sqrt(self.square_dist_values(center_array))
 
-    def gaussianValues(self,alpha,center_array=[0.,0.,0.]):
+    def gaussianValues(self,alpha=0.1,center_array=[0.,0.,0.]):
         '''Return a ndarray with
         the values of the gaussian
         (1/(alpha*sqrt(2pi)))*exp(-square_dist_values(center_array)/(2.0*alpha**2))
@@ -588,7 +588,7 @@ class Grid_Function(Grid_Function_Base):
         values = self.grid.square_dist_values(p)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
-    def gaussian(self,alpha,center_array=[0.,0.,0.]):
+    def gaussian(self,alpha=0.1,center_array=[0.,0.,0.]):
         '''Returns a new Grid_Function,
         the gaussian (see grid.gaussianValues for the details)
         centered in center_array'''
@@ -600,6 +600,7 @@ class Grid_Function(Grid_Function_Base):
         with the real part of f(x)'''
         values = np.real(self.values)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
+
     def imag(self):
         '''Returns a new Grid_Function
         with the imaginary part of f(x)'''
