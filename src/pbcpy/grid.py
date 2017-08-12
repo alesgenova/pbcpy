@@ -168,6 +168,9 @@ class Grid_Space(object):
         self.nnr = self.grid.nnr
         self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention, conv_type=conv_type, scale=self.nr)
 
+    def clone(self):
+        return Grid_Space(self.grid.at,self.nr,origin=self.origin,units=self.units,reciprocal_convention=self.reciprocal_convention,conv_type=self.conv_type)
+
 class Grid_Function_Base(object):
     '''
     Object representing a function on a grid
@@ -182,7 +185,7 @@ class Grid_Function_Base(object):
 
     plot_num :
 
-    spl_coeffs : 
+    spl_coeffs :
 
     values : ndarray
         the values of the function
@@ -402,7 +405,7 @@ class Grid_Function_Base(object):
 class Grid_Function_Reciprocal(Grid_Function_Base):
     '''
     Object representing a function on reciprocal space (the reciprocal grid in a grid space is the domain)
-    
+
     extends Grid_Function_Base (functions on generic grid)
 
     Attributes
@@ -418,6 +421,9 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         self.grid_space = grid_space
         self.grid = grid_space.reciprocal_grid
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
+
+    def clone(self):
+        return Grid_Function_Reciprocal(self.grid_space,plot_num=self.plot_num, griddata_pp=self.griddata_pp, griddata_3d=self.griddata_3d)
 
     def ifft(self):
         '''
@@ -459,7 +465,7 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
 
     def linear_combination(self,g,a,b):
-        ''' Implements a*f(x)+b*g(x) 
+        ''' Implements a*f(x)+b*g(x)
         Returns a new Grid_Function_Reciprocal'''
         values = self.linear_combinationValues(g,a,b)
         return Grid_Function_Reciprocal(self.grid_space, self.plot_num, griddata_3d=values)
@@ -515,7 +521,7 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
 class Grid_Function(Grid_Function_Base):
     '''
     Object representing a function on real space (the real grid in a grid space is the domain)
-    
+
     extends Grid_Function_Base (functions on generic grid)
 
     Attributes
@@ -529,6 +535,9 @@ class Grid_Function(Grid_Function_Base):
         self.grid_space = grid_space
         self.grid = grid_space.grid
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
+
+    def clone(self):
+        return Grid_Function(self.grid_space,plot_num=self.plot_num, griddata_pp=self.griddata_pp, griddata_3d=self.griddata_3d)
 
     def fft(self):
         ''' Implements the Discrete Fourier Transform
@@ -569,7 +578,7 @@ class Grid_Function(Grid_Function_Base):
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
 
     def linear_combination(self,g,a,b):
-        ''' Implements a*f(x)+b*g(x) 
+        ''' Implements a*f(x)+b*g(x)
         Returns a new Grid_Function'''
         values = self.linear_combinationValues(g,a,b)
         return Grid_Function(self.grid_space, self.plot_num, griddata_3d=values)
