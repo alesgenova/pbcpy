@@ -4,9 +4,9 @@ molecules and materials under periodic boundary conditions (PBC).
 
 Foundation of the package are:
 
-    - `Cell` and `Coord` classes which define a unit cell under PBC, and a cartesian/crystal coordinate respectively;
-    - `Grid` and `Grid_Space` classes which define a grid in a unit cell and the grid together with its reciprocal respectively;
-    - `Grid_Function` and `Grid_Function_Reciprocal` classes define functions on a grid space. Their domain is the "real" grid and the "reciprocal" grid, respectively.
+- `Cell` and `Coord` classes which define a unit cell under PBC, and a cartesian/crystal coordinate respectively;
+- `Grid` and `Grid_Space` classes which define a grid in a unit cell and the grid together with its reciprocal respectively;
+- `Grid_Function` and `Grid_Function_Reciprocal` classes define functions on a grid space. Their domain is the "real" grid and the "reciprocal" grid, respectively.
 
 `pbcpy` also provides tools to deal with quantities represented on equally spaced grids, through the `Grid` class. Operations such as interpolations or taking arbitrary 1D/2D/3D cuts are made very easy.
 
@@ -17,8 +17,8 @@ Finally, `pbcpy` provides IO support to some common file formats:
 - XCrySDen `.xsf` format (write only)
 
 `pbcpy` has been developed @ [Pavanello Research Group](http://michelepavanello.com/) by:
-    - Alessandro Genova 
-    - Tommaso Pavanello
+- Alessandro Genova 
+- Tommaso Pavanello
 
 ## Installation
 ```
