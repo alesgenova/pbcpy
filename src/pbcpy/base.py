@@ -12,8 +12,6 @@ class Cell(object):
         length units of the lattice vectors.
     at : array_like[3,3]
         matrix containing the direct lattice vectors (as its colums)
-    bg : array_like[3,3]
-        matrix containing the reciprocal lattice vectors (i.e. inverse of at)
     omega : float
         volume of the cell in units**3
 

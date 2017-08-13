@@ -2,17 +2,23 @@
 `pbcpy` is a Python3 package providing some useful tools when dealing with
 molecules and materials under periodic boundary conditions (PBC).
 
-Foundation of the package are the `Cell` and `Coord` classes, which define a unit cell under PBC, and a cartesian/crystal coordinate respectively.
+Foundation of the package are:
 
-`pbcpy` also provides tools to deal with quantities represented on an equally spaced grids, through the `Grid` and `Plot` classes. Operations such as interpolations or taking arbitrary 1D/2D/3D cuts are made very easy.
+    - `Cell` and `Coord` classes which define a unit cell under PBC, and a cartesian/crystal coordinate respectively;
+    - `Grid` and `Grid_Space` classes which define a grid in a unit cell and the grid together with its reciprocal respectively;
+    - `Grid_Function` and `Grid_Function_Reciprocal` classes define functions on a grid space. Their domain is the "real" grid and the "reciprocal" grid, respectively.
+
+`pbcpy` also provides tools to deal with quantities represented on equally spaced grids, through the `Grid` class. Operations such as interpolations or taking arbitrary 1D/2D/3D cuts are made very easy.
 
 In addition, `pbcpy` exposes a fully periodic N-rank array, the `pbcarray`, which is derived from the `numpy.ndarray`.
 
 Finally, `pbcpy` provides IO support to some common file formats:
-- The Quantum Espresso `.pp` format (read only)
-- The XCrySDen `.xsf` format (write only)
+- Quantum Espresso `.pp` format (read only)
+- XCrySDen `.xsf` format (write only)
 
-`pbcpy` has been developed by Alessandro Genova @ [Pavanello Research Group](http://michelepavanello.com/)
+`pbcpy` has been developed @ [Pavanello Research Group](http://michelepavanello.com/) by:
+    - Alessandro Genova 
+    - Tommaso Pavanello
 
 ## Installation
 ```
@@ -29,27 +35,23 @@ A unit cell is defined by its lattice vectors. To create a `Cell` object we need
 # Valid units are "Angstrom", "Bohr", "nm", "m"
 ```
 
+Make sure that at1 is of type numpy array.
+
 ### `Cell` attributes
 - `units` : the length units of the lattice vectors
 - `at` : the lattice vectors (as columns)
-- `bg` : the reciprocal vectors (as columns)
 - `omega` : the volume of the cell
+- `origin` : the origin of the Cartesian reference frame
 
 ```python
 >>> cell1.units
 'Angstrom'
 
-# the direct lattice
+# the lattice
 >>> cell1.at
 array([[ 10.,   0.,   0.],
        [  0.,  10.,   0.],
        [  0.,   0.,  10.]])
-
-# the reciprocal lattice
->>> cell1.bg
-array([[ 0.1,  0. ,  0. ],
-       [ 0. ,  0.1,  0. ],
-       [ 0. ,  0. ,  0.1]])
 
 # the volume
 >>> cell1.omega
@@ -64,6 +66,22 @@ array([[ 0.1,  0. ,  0. ],
 >>> cell2 = Cell(at=at2, origin=[0,0,0], units="nm") # 1nm cubic cell
 >>> cell2 == cell1
 True
+```
+
+- `reciprocal_cell` : returns a new cell object that is the "reciprocal" cell of self
+
+```python
+>>> reciprocal_cell1 = cell1.reciprocal_cell()
+>>> reciprocal_cell2 = cell2.reciprocal_cell()
+>>> print(reciprocal_cell1.at)
+array([[ 0.1,  0. ,  0. ],
+       [ 0. ,  0.1,  0. ],
+       [ 0. ,  0. ,  0.1]])
+
+>>> print(reciprocal_cell2.at)
+array([[ 1.,  0.,  0.],
+       [ 0.,  1.,  0.],
+       [ 0.,  0.,  1.]])
 ```
 
 ## `Coord` class
