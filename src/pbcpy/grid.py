@@ -19,6 +19,17 @@ class Grid(Cell):
     r : vectors in cartesian coordinates identifying the subcells
 
     s : vectors in crystal coordinates identifying the subcells
+
+    Note:
+    
+    It is possible to choose between 3 different conventions for coordinates:
+    - mic : 'mic'
+        MIC convention.
+    - mic_scaled : 'mic_scaled'
+        MIC convention. Each vector i is scaled by multiplying it for nr[i]
+    - normal (any other string would stick with this choice).
+        NO MIC conversion.
+
     '''
 
     def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic'):
@@ -65,10 +76,12 @@ class Grid(Cell):
             Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
             physics convention defines the reciprocal lattice to be
             exp^{i G \cdot R} = 1
-            Now we have the following "crystallographer's" definition ('crystallograph')
+            Numpy uses the "crystallographer's" definition ('crystallograph')
             which comes from defining the reciprocal lattice to be
             e^{2\pi i G \cdot R} =1
             In this case bg^T = at^{-1}
+            We can use the 'physics' one with conv_type='physics' (*2pi)
+            and the right scale (*self.nr)
             -----------------------------
             Note2: We have to use 'Bohr' units to avoid changing hbar value
         """
@@ -93,7 +106,7 @@ class Grid(Cell):
         return mask
 
     def crystal_coord_array(self,array):
-        '''Return a Coord in crystal coordinates'''
+        '''Returns a Coord in crystal coordinates'''
         if isinstance(array, (Coord)):
             #TODO check units
             return array.to_crys()
@@ -101,7 +114,7 @@ class Grid(Cell):
             return Coord(array, cell=self, ctype='Crystal', units=self.units)
 
     def cartesian_coord_array(self,array):
-        '''Return a Coord in cartesian coordinates'''
+        '''Returns a Coord in cartesian coordinates'''
         if isinstance(array, (Coord)):
             #TODO check units
             return array.to_cart()
@@ -109,7 +122,7 @@ class Grid(Cell):
             return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
     def square_dist_values(self,center_array=[0.,0.,0.]):
-        '''Return a ndarray with
+        '''Returns a ndarray with
         square distance from center_array of
         grid points in cartesian coordinates
         '''
@@ -123,14 +136,14 @@ class Grid(Cell):
         return val
 
     def dist_values(self,center_array=[0.,0.,0.]):
-        '''Return a ndarray with
+        '''Returns a ndarray with
         the distance from center_array of
         grid points in cartesian coordinates
         '''
         return np.sqrt(self.square_dist_values(center_array))
 
     def gaussianValues(self,alpha=0.1,center_array=[0.,0.,0.]):
-        '''Return a ndarray with
+        '''Returns a ndarray with
         the values of the gaussian
         (1/(alpha*sqrt(2pi)))*exp(-square_dist_values(center_array)/(2.0*alpha**2))
         centered on center_array

@@ -24,9 +24,12 @@ class Cell(object):
             matrix containing the direct lattice vectors (as its colums)
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
             length units of the lattice vectors.
+        bg : array_like[3,3]
+            the matrix inverse of at
 
         """
         self.at = np.asarray(at)
+        self.bg = np.linalg.inv(at)
         self.origin = np.asarray(origin)
         self.units = units
         self.omega = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
@@ -100,13 +103,12 @@ class Cell(object):
             Note2: We have to use 'Bohr' units to avoid changing hbar value
         """
         # TODO define in constants module hbar value for all units allowed
-        bg_not_scaled = np.linalg.inv(self.at)
         if convention == 'physics':
-            bg = np.einsum('ij,j->ij',2*np.pi*bg_not_scaled,scale)
+            reciprocal_at = np.einsum('ij,j->ij',2*np.pi*self.bg,scale)
         else:
-            bg = np.einsum('ij,j->ij',bg_not_scaled,scale)
+            reciprocal_at = np.einsum('ij,j->ij',self.bg,scale)
 
-        return Cell(at=bg,units=self.units,origin=np.array([0.,0.,0.]))
+        return Cell(at=reciprocal_at,units=self.units,origin=np.array([0.,0.,0.]))
 
 
 class Coord(np.ndarray):

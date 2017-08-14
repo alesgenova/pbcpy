@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import ndimage
 from .grid import Grid, Grid_Space
 
 class Grid_Function_Base(object):
@@ -89,8 +90,8 @@ class Grid_Function_Base(object):
 
     def get_3dinterpolation(self, nr_new):
         """
-        Interpolates the values of the plot on a cell with a different number
-        of points, and returns a new plot object.
+        Interpolates the values of the function on a cell with a different number
+        of points, and returns a new Grid_Function_Base object.
         """
         if self.spl_coeffs is None:
             self._calc_spline()
