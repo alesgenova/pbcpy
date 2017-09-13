@@ -12,8 +12,6 @@ class Cell(object):
         length units of the lattice vectors.
     at : array_like[3,3]
         matrix containing the direct lattice vectors (as its colums)
-    bg : array_like[3,3]
-        matrix containing the reciprocal lattice vectors (i.e. inverse of at)
     omega : float
         volume of the cell in units**3
 
@@ -26,14 +24,15 @@ class Cell(object):
             matrix containing the direct lattice vectors (as its colums)
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
             length units of the lattice vectors.
+        bg : array_like[3,3]
+            the matrix inverse of at
 
         """
         self.at = np.asarray(at)
+        self.bg = np.linalg.inv(at)
         self.origin = np.asarray(origin)
         self.units = units
-        self.bg = np.linalg.inv(at)
         self.omega = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
-        # self.alat = np.sqrt(np.dot(at[:][0], at[:][0]))
 
     def __eq__(self, other):
         """
@@ -86,6 +85,30 @@ class Cell(object):
             return self
         else:
             return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
+
+    def reciprocal_cell(self,scale=[1.,1.,1.],convention=''):
+        """
+            Returns a new cell, the reciprocal cell of self
+            The Cell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        # TODO define in constants module hbar value for all units allowed
+        if convention == 'physics':
+            reciprocal_at = np.einsum('ij,j->ij',2*np.pi*self.bg,scale)
+        else:
+            reciprocal_at = np.einsum('ij,j->ij',self.bg,scale)
+
+        return Cell(at=reciprocal_at,units=self.units,origin=np.array([0.,0.,0.]))
 
 
 class Coord(np.ndarray):
@@ -162,6 +185,11 @@ class Coord(np.ndarray):
                 return Exception
 
         return np.ndarray.__add__(self, other)
+
+    def __multiply__(self,scalar):
+        """ Implement the scalar multiplication"""
+        # TODO check scalar is a scalar
+        return np.multiply(self,scalar)
 
     def to_cart(self):
         """
@@ -249,7 +277,7 @@ class Coord(np.ndarray):
 
     def length(self):
         """
-        Calculate the legth of a Coord array.
+        Calculate the length of a Coord array.
 
         Returns
         -------

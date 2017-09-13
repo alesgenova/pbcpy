@@ -2,63 +2,92 @@ import numpy as np
 from scipy import ndimage
 from .base import Cell, Coord
 
-
-class ReciprocalGrid(Cell):
-    def __init__(self, bg, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
-        super().__init__(bg, origin, units)
-        self.nr = np.asarray(nr)
-        self.nnr = nr[0] * nr[1] * nr[2]
-        self.dV = self.omega / self.nnr
-        self.g = None
-        self.gg = None
-        self._calc_gridpoints()
-
-    def _calc_gridpoints(self):
-        if self.g is None:
-            ax = []
-            for i in range(3):
-                # use fftfreq function so we don't have to worry about odd or even number of points
-                ax.append(np.fft.fftfreq(self.nr[i]))
-                work = np.zeros(self.nr[i])
-
-            G = np.ndarray(shape=(self.nr[0], self.nr[
-                           1], self.nr[2], 3), dtype=float)
-            G[:, :, :, 0], G[:, :, :, 1], G[
-                :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            g = Coord(G, cell=self, ctype='Crystal')
-            self.g = g.to_cart()
-            self.gg = np.zeros(self.nr)
-            for i in range(self.nr[0]):
-                for j in range(self.nr[1]):
-                    for k in range(self.nr[2]):
-                        the_g = self.g[i,j,k,:]
-                        self.gg[i,j,k] = np.sqrt(np.dot(the_g,the_g))
-            #self.gg = np.dot(self.g,self.g)
-
-
 class Grid(Cell):
 
-    def __init__(self, a, nr, origin=np.array([0.,0.,0.]), units='Bohr'):
-        super().__init__(a, origin, units)
+    '''
+    Object representing a grid (Cell (lattice) plus discretization)
+    extends Cell
+
+    Attributes
+    ----------
+    nr : array of numbers used for discretization
+
+    nnr : total number of subcells
+
+    dV : volume of a subcell
+
+    r : vectors in cartesian coordinates identifying the subcells
+
+    s : vectors in crystal coordinates identifying the subcells
+
+    Note:
+    
+    It is possible to choose between 3 different conventions for coordinates:
+    - mic : 'mic'
+        MIC convention.
+    - mic_scaled : 'mic_scaled'
+        MIC convention. Each vector i is scaled by multiplying it for nr[i]
+    - normal (any other string would stick with this choice).
+        NO MIC conversion.
+
+    '''
+
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic'):
+        super().__init__(at, origin, units)
         self.nr = np.asarray(nr)
         self.nnr = nr[0] * nr[1] * nr[2]
         self.dV = self.omega / self.nnr
         self.r = None
         self.s = None
-        self._calc_gridpoints()
+        self._calc_gridpoints(convention)
 
-    def _calc_gridpoints(self):
+    def _calc_gridpoints(self,convention):
         if self.r is None:
-
-            s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
-            s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
-            s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
-            S[:, :, :, 0], S[:, :, :, 1], S[
-                :, :, :, 2] = np.meshgrid(s0, s1, s2, indexing='ij')
+            if convention == 'mic' or convention == 'mic_scaled':
+                ax = []
+                for i in range(3):
+                    # use fftfreq function so we don't have to worry about odd or even number of points
+                    dd=1
+                    if convention == 'mic_scaled':
+                        dd=1/self.nr[i]
+                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
+                    work = np.zeros(self.nr[i])
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
+            else:
+                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
+                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
+                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
+
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(s0, s1, s2, indexing='ij')
             self.s = Coord(S, cell=self, ctype='Crystal')
             self.r = self.s.to_cart()
+
+    def reciprocal_grid(self, reciprocal_convention='mic', \
+            conv_type='physics', scale=[1.,1.,1.]):
+        """
+            Returns a new Grid object (the reciprocal grid)
+            The Cell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Numpy uses the "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            We can use the 'physics' one with conv_type='physics' (*2pi)
+            and the right scale (*self.nr)
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        rec_cell = self.reciprocal_cell(scale=scale,convention=conv_type)
+        rec_grid = Grid(rec_cell.at,self.nr,units=self.units,convention=reciprocal_convention)
+        return rec_grid
 
     def _calc_mask(self, ref_points):
 
@@ -76,181 +105,81 @@ class Grid(Cell):
                             mask[i, j, k] = 0.
         return mask
 
-
-class Plot(object):
-    # order of the spline interpolation
-    spl_order = 3
-
-    def __init__(self, grid, reciprocal_grid, plot_num=0, griddata_pp=None, griddata_3d=None):
-        self.grid = grid
-        self.reciprocal_grid = reciprocal_grid
-        self.ndim = (grid.nr > 1).sum()
-        self.plot_num = plot_num
-        self.spl_coeffs = None
-        if griddata_pp is None and griddata_3d is None:
-            pass
-        elif griddata_pp is not None:
-            self.values = np.reshape(griddata_pp, grid.nr, order='F')
-        elif griddata_3d is not None:
-            self.values = griddata_3d
-        self.reciprocal_values = np.zeros(shape=reciprocal_grid.nr)
-
-    def _calc_spline(self):
-        padded_values = np.pad(self.values, ((self.spl_order,)), mode='wrap')
-        self.spl_coeffs = ndimage.spline_filter(
-            padded_values, order=self.spl_order)
-        return
-
-    def fft(self):
-        #do we want to return the value of the fft and assign it as well?
-        self.reciprocal_values = np.fft.fftn(self.values)
-        return self.reciprocal_values
-
-    def ifft(self):
-        #do we want to return the value of the ifft and assign it as well?
-        self.values = np.fft.fftn(self.reciprocal_values)
-        return self.values
-
-    def get_3dinterpolation(self, nr_new):
-        """
-        Interpolates the values of the plot on a cell with a different number
-        of points, and returns a new plot object.
-        """
-        if self.spl_coeffs is None:
-            self._calc_spline()
-        x = np.linspace(0, 1, nr_new[0], endpoint=False) * \
-            self.grid.nr[0] + self.spl_order
-        y = np.linspace(0, 1, nr_new[1], endpoint=False) * \
-            self.grid.nr[1] + self.spl_order
-        z = np.linspace(0, 1, nr_new[2], endpoint=False) * \
-            self.grid.nr[2] + self.spl_order
-        X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
-        new_values = ndimage.map_coordinates(
-            self.spl_coeffs, [X, Y, Z], mode='wrap')
-        new_grid = Grid(self.grid.at, nr_new, units=self.grid.units)
-        return Plot(new_grid, self.plot_num, griddata_3d=new_values)
-
-    def get_value_at_points(self, points):
-        """points is in crystal coordinates"""
-        if self.spl_coeffs is None:
-            self._calc_spline()
-        for ipol in range(3):
-            # restrict crystal coordinates to [0,1)
-            points[:, ipol] = (points[:, ipol] % 1) * \
-                self.grid.nr[ipol] + self.spl_order
-        values = ndimage.map_coordinates(self.spl_coeffs, [points[:, 0],
-                                         points[:, 1], points[:, 2]],
-                                         mode='wrap')
-        return values
-
-    def get_values_flatarray(self, pad=0, order='F'):
-        if pad > 0:
-            if self.ndim == 1:
-                pad_tup = ((0,pad),(0,0),(0,0))
-            elif self.ndim == 2:
-                pad_tup = ((0,pad),(0,pad),(0,0))
-            elif self.ndim == 3:
-                pad_tup = ((0,pad),(0,pad),(0,pad))
-            vals = np.pad(self.values, (0,pad), mode='wrap')
+    def crystal_coord_array(self,array):
+        '''Returns a Coord in crystal coordinates'''
+        if isinstance(array, (Coord)):
+            #TODO check units
+            return array.to_crys()
         else:
-            vals = self.values
-        nr = vals.shape
-        nnr = 1
-        for n in nr:
-            nnr *= n
-        #nnr = nr[0] * nr[1] * nr[2]
-        print(nr, nnr)
-        return np.reshape(vals, nnr, order=order)
+            return Coord(array, cell=self, ctype='Crystal', units=self.units)
 
-    def get_plotcut(self, x0, r0, r1=None, r2=None, nr=10):
-        """
-        general routine to get the arbitrary cuts of a Plot object in 1,2,
-        or 3 dimensions. spline interpolation will be used.
-            x0 = origin of the cut
-            r0 = first vector (always required)
-            r1 = second vector (required for 2D and 3D cuts)
-            r2 = third vector (required for 3D cuts)
-            nr[i] = number points to discretize each direction ; i = 0,1,2
-        x0, r0, r1, r2 are all in crystal coordinates
-        """
+    def cartesian_coord_array(self,array):
+        '''Returns a Coord in cartesian coordinates'''
+        if isinstance(array, (Coord)):
+            #TODO check units
+            return array.to_cart()
+        else:
+            return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
-        ndim = 1
+    def square_dist_values(self,center_array=[0.,0.,0.]):
+        '''Returns a ndarray with
+        square distance from center_array of
+        grid points in cartesian coordinates
+        '''
+        # assuming ctype=crystal if center_array is not a Coord object
+        if isinstance(center_array, (Coord)):
+            center = center_array
+        else:
+            center = Coord(center_array, cell=self, ctype='Crystal', units=self.units)
+        center_cart = center.to_cart()
+        val = np.einsum('ijkl,ijkl->ijk',self.r-center_cart,self.r-center_cart)
+        return val
 
-        x0 = x0.to_crys()
-        r0 = r0.to_crys()
-        if r1 is not None:
-            r1 = r1.to_crys()
-            ndim += 1
-            if r2 is not None:
-                r2 = r2.to_crys()
-                ndim += 1
-        nrx = np.ones(3, dtype=int)
-        if isinstance(nr, (int, float)):
-            nrx[0:ndim] = nr
-        elif isinstance(nr, (np.ndarray, list, tuple)):
-            nrx[0:ndim] = np.asarray(nr, dtype=int)
+    def dist_values(self,center_array=[0.,0.,0.]):
+        '''Returns a ndarray with
+        the distance from center_array of
+        grid points in cartesian coordinates
+        '''
+        return np.sqrt(self.square_dist_values(center_array))
 
-        dr = np.zeros((3, 3), dtype=float)
-        dr[0, :] = (r0) / nrx[0]
-        if ndim > 1:
-            dr[1, :] = (r1) / nrx[1]
-            if ndim == 3:
-                dr[2, :] = (r2) / nrx[2]
-        points = np.zeros((nrx[0], nrx[1], nrx[2], 3))
-        axis = []
-        for ipol in range(3):
-            axis.append(np.zeros((nrx[ipol], 3)))
-            for ir in range(nrx[ipol]):
-                axis[ipol][ir, :] = ir * dr[ipol]
+    def gaussianValues(self,alpha=0.1,center_array=[0.,0.,0.]):
+        '''Returns a ndarray with
+        the values of the gaussian
+        (1/(alpha*sqrt(2pi)))*exp(-square_dist_values(center_array)/(2.0*alpha**2))
+        centered on center_array
+        '''
+        if isinstance(alpha, (int,float,complex)):
+            return (1.0/(alpha*np.sqrt(2.0*np.pi)))*np.exp(-self.square_dist_values(center_array)/(2.0*alpha**2))
+        else:
+            return Exception
 
-        for i in range(nrx[0]):
-            for j in range(nrx[1]):
-                for k in range(nrx[2]):
-                    points[i, j, k, :] = x0 + axis[0][i, :] + \
-                        axis[1][j, :] + axis[2][k, :]
+class Grid_Space(object):
 
-        a, b, c, d = points.shape
-        points = points.reshape((a * b * c, 3))
+    '''
+    Object representing a grid
+    (Cell (lattice) plus discretization)
+    together with its reciprocal grid
 
-        values = self.get_value_at_points(points)
+    Attributes
+    ----------
+    grid : Grid
+        grid on direct space
 
-        # generate a new grid (possibly 1D/2D/3D)
-        origin = x0.to_cart()
-        at = np.identity(3)
-        v0 = r0.to_cart()
-        v1 = np.zeros(3)
-        v2 = np.zeros(3)
-        # We still need to define 3 lattice vectors even if the plot is in 1D/2D
-        # Here we ensure the 'ficticious' vectors are orthonormal to the actual ones
-        # so that units of length/area are correct.
-        if ndim == 1:
-            for i in range(3):
-                if abs(v0[i]) > 1e-4:
-                    j = i - 1
-                    v1[j] = v0[i]
-                    v1[i] = -v0[j]
-                    v1 = v1 / np.sqrt(np.dot(v1,v1))
-                    break
-            v2 = np.cross(v0,v1)
-            v2 = v2 / np.sqrt(np.dot(v2,v2))
-        elif ndim  == 2:
-            v1 = r1.to_cart()
-            v2 = np.cross(v0,v1)
-            v2 = v2/ np.sqrt(np.dot(v2,v2))
-        elif ndim == 3:
-            v1 = r1.to_cart()
-            v2 = r2.to_cart()
-        at[:,0] = v0
-        at[:,1] = v1
-        at[:,2] = v2
+    reciprocal_grid : Grid
+        grid on reciprocal space
 
-        cut_grid = Grid(at=at, nr=nrx, origin=origin, units=x0.cell.units)
+    nr : array of numbers used for discretization
 
-        if ndim == 1:
-            values = values.reshape((a))
-        elif ndim == 2:
-            values = values.reshape((a, b))
-        elif ndim == 3:
-            values = values.reshape((a, b, c))
+    nnr : total number of subcells
 
-        return Plot(grid=cut_grid, plot_num=self.plot_num, griddata_3d=values)
+    '''
+
+    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic', conv_type='physics'):
+
+        self.grid = Grid(at, nr, origin=origin, units=units, convention=convention)
+        self.nr = self.grid.nr
+        self.nnr = self.grid.nnr
+        self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention, conv_type=conv_type, scale=self.nr)
+
+    def clone(self):
+        return Grid_Space(self.grid.at,self.nr,origin=self.origin,units=self.units,reciprocal_convention=self.reciprocal_convention,conv_type=self.conv_type)
