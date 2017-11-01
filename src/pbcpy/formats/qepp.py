@@ -1,5 +1,6 @@
 import numpy as np
-from ..grid import Grid, Plot
+from ..grid import Grid
+from ..grid_functions import Grid_Function_Base
 from ..system import System
 from ..atom import Atom
 from ..system import System
@@ -87,7 +88,7 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = Plot(grid, plot_num, griddata_pp=ppgrid)
+            plot = Grid_Function_Base(grid, plot_num, griddata_pp=ppgrid)
 
             return System(atoms, grid, name=self.title, plot=plot)
 
