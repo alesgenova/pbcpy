@@ -67,7 +67,7 @@ array([[ 10.,   0.,   0.],
 True
 ```
 
-- `reciprocal_cell: returns a new cell object that is the "reciprocal" cell of self
+- `reciprocal_cell`: returns a new cell object that is the "reciprocal" cell of self
 
 ```python
 >>> reciprocal_cell1 = cell1.reciprocal_cell()
