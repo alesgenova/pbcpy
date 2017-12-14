@@ -23,22 +23,6 @@ class Functional(object):
 
 
     def __init__(self, energydensity=None, potential=None, kernel=None):
-    '''
-    Object representing a DFT functional
-    
-    Attributes
-    ----------
-    energydensity: Grid_Function
-        The energy density 
-
-    potential: Grid_Function
-        The first functional derivative of the functional wrt 
-        the electron density 
-        
-    kernel: Grid_Function_Reciprocal
-        The value of the reciprocal space kernel. This will
-        be populated only if the functional is nonlocal
-    '''
         if energydensity is not None:
             if isinstance(energydensity, Grid_Function):
                 self.energydensity = energydensity
