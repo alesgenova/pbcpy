@@ -10,13 +10,13 @@ class Cell(object):
     ----------
     units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
         length units of the lattice vectors.
-    at : array_like[3,3]
-        matrix containing the direct lattice vectors (as its colums)
+    lattice : array_like[3,3]
+        matrix containing the lattice vectors of the cell (as its colums)
     omega : float
         volume of the cell in units**3
 
     """
-    def __init__(self, at, origin=np.array([0.,0.,0.]), units='Bohr'):
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr', reciprocal=False):
         """
         Parameters
         ----------
@@ -28,11 +28,12 @@ class Cell(object):
             the matrix inverse of at
 
         """
-        self.at = np.asarray(at)
-        self.bg = np.linalg.inv(at)
+        # lattice is always stored in atomic units: Bohr for direct lattices, 1/Bohr for reciprocal lattices
+        self.lattice = np.asarray(lattice)
+        #self.bg = np.linalg.inv(at)
         self.origin = np.asarray(origin)
         self.units = units
-        self.omega = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
+        self.volume = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
 
     def __eq__(self, other):
         """
@@ -55,12 +56,17 @@ class Cell(object):
             # if they refer to the same object, just cut to True
             return True
 
+        if (isinstance(self),other):
+            # if one is the reciprocal cell and the other is the direct cell, return false
+            return False
+
+
         eps = 1e-4
         conv = LEN_CONV[other.units][self.units]
 
         for ilat in range(3):
-            lat0 = self.at[:, ilat]
-            lat1 = other.at[:, ilat] * conv
+            lat0 = self.lat[:, ilat]
+            lat1 = other.lat[:, ilat] * conv
             overlap = np.dot(lat0, lat1) / np.dot(lat0, lat0)
             if abs(1 - overlap) > eps:
                 return False
@@ -110,6 +116,11 @@ class Cell(object):
 
         return Cell(at=reciprocal_at,units=self.units,origin=np.array([0.,0.,0.]))
 
+class DirectCell(Cell):
+    pass
+
+class ReciprocalCell(Cell):
+    pass
 
 class Coord(np.ndarray):
     """
