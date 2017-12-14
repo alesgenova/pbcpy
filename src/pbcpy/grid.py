@@ -61,13 +61,11 @@ class Grid(Cell):
                 s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
                 s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
 
-                S[:, :, :, 0], S[:, :, :, 1], S[
-                    :, :, :, 2] = np.meshgrid(s0, s1, s2, indexing='ij')
+                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
             self.s = Coord(S, cell=self, ctype='Crystal')
             self.r = self.s.to_cart()
 
-    def reciprocal_grid(self, reciprocal_convention='mic', \
-            conv_type='physics', scale=[1.,1.,1.]):
+    def reciprocal_grid(self, reciprocal_convention='mic', conv_type='physics', scale=[1.,1.,1.]):
         """
             Returns a new Grid object (the reciprocal grid)
             The Cell is scaled properly to include
