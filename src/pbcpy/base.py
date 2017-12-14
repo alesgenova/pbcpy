@@ -32,7 +32,7 @@ class Cell(object):
         self.bg = np.linalg.inv(at)
         self.origin = np.asarray(origin)
         self.units = units
-        self.omega = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
+        self.omega = np.abs(np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2])))
 
     def __eq__(self, other):
         """
