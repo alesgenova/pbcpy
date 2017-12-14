@@ -28,9 +28,6 @@ class Functional(object):
     
     Attributes
     ----------
-    name: string
-        The (optional) name of the functional
-
     energydensity: Grid_Function
         The energy density 
 
