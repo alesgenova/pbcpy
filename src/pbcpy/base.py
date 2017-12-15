@@ -16,24 +16,21 @@ class Cell(object):
         volume of the cell in units**3
 
     """
-    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr', reciprocal=False):
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr'):
         """
         Parameters
         ----------
-        at : array_like[3,3]
-            matrix containing the direct lattice vectors (as its colums)
+        lattice : array_like[3,3]
+            matrix containing the direct/reciprocal lattice vectors (as its colums)
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
-            length units of the lattice vectors.
-        bg : array_like[3,3]
-            the matrix inverse of at
-
+            lattice is always passed as Bohr, but we can save a preferred unit for print purposes
         """
         # lattice is always stored in atomic units: Bohr for direct lattices, 1/Bohr for reciprocal lattices
-        self.lattice = np.asarray(lattice)
+        self._lattice = np.asarray(lattice)
         #self.bg = np.linalg.inv(at)
-        self.origin = np.asarray(origin)
-        self.units = units
-        self.volume = np.dot(at[:, 0], np.cross(at[:, 1], at[:, 2]))
+        self._origin = np.asarray(origin)
+        self._units = units
+        self._volume = np.dot(lattice[:, 0], np.cross(lattice[:, 1], lattice[:, 2]))
 
     def __eq__(self, other):
         """
@@ -56,22 +53,31 @@ class Cell(object):
             # if they refer to the same object, just cut to True
             return True
 
-        if (isinstance(self),other):
-            # if one is the reciprocal cell and the other is the direct cell, return false
-            return False
-
-
+        # internally the lattice vectors are always saved in Bohr or 1/Bohr, no need to convert anymore
         eps = 1e-4
-        conv = LEN_CONV[other.units][self.units]
+        #conv = LEN_CONV[other.units][self.units]
+        conv = 1.0
 
         for ilat in range(3):
-            lat0 = self.lat[:, ilat]
-            lat1 = other.lat[:, ilat] * conv
+            lat0 = self.lattice[:, ilat]
+            lat1 = other.lattice[:, ilat] * conv
             overlap = np.dot(lat0, lat1) / np.dot(lat0, lat0)
             if abs(1 - overlap) > eps:
                 return False
 
         return True
+
+    @property
+    def lattice(self):
+        return self._lattice
+
+    @property
+    def units(self):
+        return self._units
+
+    @property
+    def volume(self):
+        return self._volume
 
     def conv(self, units):
         """
@@ -87,15 +93,41 @@ class Cell(object):
         out : Cell
             New cell object with changed length unit.
         """
-        if self.units == units:
-            return self
-        else:
-            return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
+        # no need for a conv
+        raise NotImplementedError("Cell objects are now always convertend internally to atomic units. Can only be provided when initializing.")
+        #if self.units == units:
+        #    return self
+        #else:
+        #    return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
 
-    def reciprocal_cell(self,scale=[1.,1.,1.],convention=''):
+class DirectCell(Cell):
+    
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr'):
         """
-            Returns a new cell, the reciprocal cell of self
-            The Cell is scaled properly to include
+        Parameters
+        ----------
+        lattice : array_like[3,3]
+            matrix containing the direct lattice vectors (as its colums)
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+            length units of the lattice vectors.
+        """
+        # internally always convert the units to Bohr
+        lattice *= LEN_CONV[units]["Bohr"]
+        super().__init__(lattice, origin, units)
+
+    def __eq__(self, other):
+        """
+        Implement the == operator in the DirectCell class.
+        Refer to the __eq__ method of Cell for more information.
+        """
+        if not isinstance(other, DirectCell):
+            raise TypeError("You can only compare a DirectCell with another DirectCell")
+        return super().__eq__(other)
+
+    def get_reciprocal(self,scale=[1.,1.,1.],convention='physics'):
+        """
+            Returns a new ReciprocalCell, the reciprocal cell of self
+            The ReciprocalCell is scaled properly to include
             the scaled (*self.nr) reciprocal grid points
             -----------------------------
             Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
@@ -109,43 +141,91 @@ class Cell(object):
             Note2: We have to use 'Bohr' units to avoid changing hbar value
         """
         # TODO define in constants module hbar value for all units allowed
-        if convention == 'physics':
-            reciprocal_at = np.einsum('ij,j->ij',2*np.pi*self.bg,scale)
-        else:
-            reciprocal_at = np.einsum('ij,j->ij',self.bg,scale)
+        scale = np.array(scale)
+        bg = np.linalg.inv(self.lattice)
+        if convention == 'physics' or convention == 'p':
+            reciprocal_lat = np.einsum('ij,j->ij',2*np.pi*bg,scale)
+        elif convention == 'crystallograph' or convention == 'c':
+            reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
 
-        return Cell(at=reciprocal_at,units=self.units,origin=np.array([0.,0.,0.]))
+        return ReciprocalCell(lattice=reciprocal_lat,units=self.units)
 
-class DirectCell(Cell):
-    pass
 
 class ReciprocalCell(Cell):
-    pass
+    
+    def __init__(self, lattice, units='Bohr'):
+        """
+        Parameters
+        ----------
+        lattice : array_like[3,3]
+            matrix containing the direct lattice vectors (as its colums)
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+            length units of the lattice vectors.
+        """
+        # internally always convert the units to Bohr
+        lattice /= LEN_CONV[units]["Bohr"]
+        super().__init__(lattice, origin=np.array([0.,0.,0.]), units=units)
+    
+    def __eq__(self, other):
+        """
+        Implement the == operator in the ReciprocalCell class.
+        Refer to the __eq__ method of Cell for more information.
+        """
+        if not isinstance(other, ReciprocalCell):
+            raise TypeError("You can only compare a DirectCell with another DirectCell")
+        return super().__eq__(other)
+
+    def get_direct(self,scale=[1.,1.,1.],convention='physics'):
+        """
+            Returns a new DirectCell, the direct cell of self
+            The DirectCell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        # TODO define in constants module hbar value for all units allowed
+        scale = np.array(scale)
+        at = np.linalg.inv(self.lattice)
+        if convention == 'physics' or convention == 'p':
+            direct_lat = np.einsum('ij,j->ij',at/(2*np.pi),1./scale)
+        elif convention == 'crystallograph' or convention == 'c':
+            direct_lat = np.einsum('ij,j->ij',at,1./scale)
+
+        return DirectCell(lattice=direct_lat,units=self.units,origin=np.array([0.,0.,0.]))
+    
 
 class Coord(np.ndarray):
     """
-    Array representing coordinates in periodic boundary conditions.
+    Array representing coordinates in real space under periodic boundary conditions.
 
     Attributes
     ----------
-    cell : Cell
+    cell : DirectCell
         The unit cell associated to the coordinates.
-    ctype : {'Cartesian', 'Crystal'}
+    basis : {'Cartesian', 'Crystal'}
         Describes whether the array contains crystal or cartesian coordinates.
 
     """
     cart_names = ['Cartesian', 'Cart', 'Ca', 'R']
     crys_names = ['Crystal', 'Crys', 'Cr', 'S']
 
-    def __new__(cls, pos, cell=None, ctype='Cartesian', units='Bohr'):
+    def __new__(cls, pos, cell=None, basis='Cartesian', units='Bohr'):
         """
         Parameters
         ----------
         pos : array_like[..., 3]
             Array containing a single or a set of 3D coordinates.
-        cell : Cell
+        cell : DirectCell
             The unit cell to be associated to the coordinates.
-        ctype : {'Cartesian', 'Crystal'}
+        basis : {'Cartesian', 'Crystal'}
             matrix containing the direct lattice vectors (as its colums)
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
             If cell is missing, it specifies the units of the versors.
@@ -154,15 +234,16 @@ class Coord(np.ndarray):
         """
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
-        obj = np.asarray(pos, dtype=float).view(cls)
+        # Internally we always use Bohr, convert accordingly
+        obj = np.asarray(pos*LEN_CONV[units]["Bohr"], dtype=float).view(cls)
         # add the new attribute to the created instance
         if cell is None:
             # If no cell in input, coordinates are purely cartesian,
             # i.e. the lattice vectors are three orthogonal versors i, j, k.
-            obj.cell = Cell(np.identity(3), units=units)
+            obj._cell = DirectCell(np.identity(3), units=units)
         else:
-            obj.cell = cell
-        obj.ctype = ctype
+            obj._cell = cell
+        obj._basis = basis
         return obj
 
     def __array_finalize__(self, obj):
@@ -170,8 +251,8 @@ class Coord(np.ndarray):
         if obj is None:
             return
 
-        self.cell = getattr(obj, 'cell', None)
-        self.ctype = getattr(obj, 'ctype', None)
+        self._cell = getattr(obj, '_cell', None)
+        self._basis = getattr(obj, '_basis', None)
         # We do not need to return anything
 
     def __add__(self, other):
@@ -191,7 +272,8 @@ class Coord(np.ndarray):
         if isinstance(other, type(self)):
         # if isinstance(other, Coord):
             if self.cell == other.cell:
-                other = other.conv(self.cell.units).to_ctype(self.ctype)
+                #other = other.conv(self.cell.units).to_ctype(self.ctype)
+                other = other.to_basis(self.basis)
             else:
                 return Exception
 
@@ -199,8 +281,18 @@ class Coord(np.ndarray):
 
     def __multiply__(self,scalar):
         """ Implement the scalar multiplication"""
-        # TODO check scalar is a scalar
-        return np.multiply(self,scalar)
+        if type(scalar) in [int,float]:
+            return np.multiply(self,scalar)
+        else:
+            raise TypeError("Coord can only be multiplied by a int or float scalar")
+
+    @property
+    def cell(self):
+        return self._cell
+
+    @property
+    def basis(self):
+        return self._basis
 
     def to_cart(self):
         """
@@ -211,11 +303,11 @@ class Coord(np.ndarray):
         out : Coord
             New Coord object insured to have ctype='Cartesian'.
         """
-        if self.ctype in Coord.cart_names:
+        if self.basis in Coord.cart_names:
             return self
         else:
             pos = s2r(self, self.cell)
-            return Coord(pos=pos, cell=self.cell, ctype=Coord.cart_names[0])
+            return Coord(pos=pos, cell=self.cell, basis=Coord.cart_names[0])
 
     def to_crys(self):
         """
@@ -226,13 +318,13 @@ class Coord(np.ndarray):
         out : Coord
             New Coord object insured to have ctype='Crystal'.
         """
-        if self.ctype in Coord.crys_names:
+        if self.basis in Coord.crys_names:
             return self
         else:
             pos = r2s(self, self.cell)
-            return Coord(pos=pos, cell=self.cell, ctype=Coord.crys_names[0])
+            return Coord(pos=pos, cell=self.cell, basis=Coord.crys_names[0])
 
-    def to_ctype(self, ctype):
+    def to_basis(self, basis):
         """
         Converts the coordinates to the desired ctype and return a new object.
 
@@ -245,10 +337,12 @@ class Coord(np.ndarray):
         out : Coord
             New Coord object insured to have ctype=ctype.
         """
-        if ctype in Coord.crys_names:
+        if basis in Coord.crys_names:
             return self.to_crys()
-        elif ctype in Coord.cart_names:
+        elif basis in Coord.cart_names:
             return self.to_cart()
+        else:
+            raise NameError("Trying to convert to an unknown basis")
 
     def d_mic(self, other):
         """
@@ -268,7 +362,7 @@ class Coord(np.ndarray):
         for i in range(3):
             ds12[i] = ds12[i] - round(ds12[i])
         # dr12 = s2r(ds12, cell)
-        return ds12.to_ctype(self.ctype)
+        return ds12.to_basis(self.basis)
 
     def dd_mic(self, other):
         """
@@ -311,12 +405,11 @@ class Coord(np.ndarray):
         out : Coord
 
         """
-        # new_at = self.cell.at.copy()
-        new_at = self.cell.at.copy()
-        new_at *= LEN_CONV[self.cell.units][new_units]
-        # new_cell = Cell(new_at,units=new_units)
-        return Coord(self.to_crys(), Cell(new_at, units=new_units),
-                     ctype=Coord.crys_names[0]).to_ctype(self.ctype)
+        #new_at = self.cell.at.copy()
+        #new_at *= LEN_CONV[self.cell.units][new_units]
+        #return Coord(self.to_crys(), Cell(new_at, units=new_units),
+        #             ctype=Coord.crys_names[0]).to_ctype(self.ctype)
+        raise NotImplementedError("Coord objects are now always convertend internally to atomic units. Can only be provided when initializing.")
 
     def change_of_basis(self, new_cell, new_origin=np.array([0., 0., 0.])):
         """
@@ -335,10 +428,11 @@ class Coord(np.ndarray):
             Coord in the new basis.
 
         """
-        M = np.dot(self.cell.bg, new_cell.bg)
-        P = np.linalg.inv(M)
-        new_pos = np.dot(P, self.to_crys())
-        return Coord(new_pos, cell=new_cell)
+        #M = np.dot(self.cell.bg, new_cell.bg)
+        #P = np.linalg.inv(M)
+        #new_pos = np.dot(P, self.to_crys())
+        #return Coord(new_pos, cell=new_cell)
+        raise NotImplementedError("Generic change of basis non implemented yet in the Coord class")
 
 
 class pbcarray(np.ndarray):
@@ -512,16 +606,19 @@ def _check_slice(sli, dim):
 
 def r2s(pos, cell):
     # Vectorize the code: the right most axis is where the coordinates are
+    # TODO: Vectorize with einsum
     pos = np.asarray(pos)
-    xyzs = np.tensordot(cell.bg, pos.T, axes=([-1], 0)).T
-    # xyzs = np.dot(cell.bg, pos)
+    bg = np.linalg.inv(cell.lattice)
+    xyzs = np.tensordot(bg, pos.T, axes=([-1], 0)).T
+    # xyzs = np.dot(bg, pos)
     return xyzs
 
 
 def s2r(pos, cell):
     # Vectorize the code: the right most axis is where the coordinates are
+    # TODO: Vectorize with einsum
     pos = np.asarray(pos)
-    xyzr = np.tensordot(cell.at, pos.T, axes=([-1], 0)).T
+    xyzr = np.tensordot(cell.lattice, pos.T, axes=([-1], 0)).T
     return xyzr
 
 
