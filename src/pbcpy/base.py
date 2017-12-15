@@ -142,11 +142,13 @@ class DirectCell(Cell):
         """
         # TODO define in constants module hbar value for all units allowed
         scale = np.array(scale)
-        bg = np.linalg.inv(self.lattice)
+        fac = 1.0
         if convention == 'physics' or convention == 'p':
-            reciprocal_lat = np.einsum('ij,j->ij',2*np.pi*bg,scale)
-        elif convention == 'crystallograph' or convention == 'c':
-            reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
+            fac = 2*np.pi
+        bg = fac*np.linalg.inv(self.lattice)
+        bg = bg.T
+        bg = bg/LEN_CONV["Bohr"][self.units]
+        reciprocal_lat = np.einsum('ij,j->ij',bg,scale)            
 
         return ReciprocalCell(lattice=reciprocal_lat,units=self.units)
 
@@ -193,12 +195,13 @@ class ReciprocalCell(Cell):
         """
         # TODO define in constants module hbar value for all units allowed
         scale = np.array(scale)
-        at = np.linalg.inv(self.lattice)
+        fac = 1.0
         if convention == 'physics' or convention == 'p':
-            direct_lat = np.einsum('ij,j->ij',at/(2*np.pi),1./scale)
-        elif convention == 'crystallograph' or convention == 'c':
-            direct_lat = np.einsum('ij,j->ij',at,1./scale)
-
+            fac = 1./(2*np.pi)
+        at = np.linalg.inv(self.lattice.T*fac)
+        at = at*LEN_CONV["Bohr"][self.units]
+        direct_lat = np.einsum('ij,j->ij',at,1./scale)
+        
         return DirectCell(lattice=direct_lat,units=self.units,origin=np.array([0.,0.,0.]))
     
 
@@ -217,7 +220,7 @@ class Coord(np.ndarray):
     cart_names = ['Cartesian', 'Cart', 'Ca', 'R']
     crys_names = ['Crystal', 'Crys', 'Cr', 'S']
 
-    def __new__(cls, pos, cell=None, basis='Cartesian', units='Bohr'):
+    def __new__(cls, pos, cell, basis='Cartesian'):
         """
         Parameters
         ----------
@@ -234,16 +237,21 @@ class Coord(np.ndarray):
         """
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
+        if type(cell) not in [DirectCell]:
+            raise TypeError("Coord represent coordinates in real space, cell needs to be a DirectCell")
+        
+        if basis not in Coord.cart_names and basis not in Coord.crys_names:
+            raise NameError("Unknown basis name: {}".format(basis))
+
         # Internally we always use Bohr, convert accordingly
-        obj = np.asarray(pos*LEN_CONV[units]["Bohr"], dtype=float).view(cls)
+        obj = np.asarray(pos, dtype=float).view(cls)
+
+        if basis in Coord.cart_names:
+            obj *= LEN_CONV[cell.units]["Bohr"]
         # add the new attribute to the created instance
-        if cell is None:
-            # If no cell in input, coordinates are purely cartesian,
-            # i.e. the lattice vectors are three orthogonal versors i, j, k.
-            obj._cell = DirectCell(np.identity(3), units=units)
-        else:
-            obj._cell = cell
         obj._basis = basis
+        #
+        obj._cell = cell
         return obj
 
     def __array_finalize__(self, obj):
@@ -301,12 +309,13 @@ class Coord(np.ndarray):
         Returns
         -------
         out : Coord
-            New Coord object insured to have ctype='Cartesian'.
+            New Coord object insured to have basis='Cartesian'.
         """
         if self.basis in Coord.cart_names:
             return self
         else:
             pos = s2r(self, self.cell)
+            pos *= LEN_CONV["Bohr"][self.cell.units]
             return Coord(pos=pos, cell=self.cell, basis=Coord.cart_names[0])
 
     def to_crys(self):
@@ -316,7 +325,7 @@ class Coord(np.ndarray):
         Returns
         -------
         out : Coord
-            New Coord object insured to have ctype='Crystal'.
+            New Coord object insured to have basis='Crystal'.
         """
         if self.basis in Coord.crys_names:
             return self
@@ -326,16 +335,16 @@ class Coord(np.ndarray):
 
     def to_basis(self, basis):
         """
-        Converts the coordinates to the desired ctype and return a new object.
+        Converts the coordinates to the desired basis and return a new object.
 
         Parameters
         ----------
-        ctype : {'Cartesian', 'Crystal'}
-            ctype to which the coordinates are converted.
+        basis : {'Cartesian', 'Crystal'}
+            basis to which the coordinates are converted.
         Returns
         -------
         out : Coord
-            New Coord object insured to have ctype=ctype.
+            New Coord object insured to have basis=basis.
         """
         if basis in Coord.crys_names:
             return self.to_crys()
@@ -355,7 +364,7 @@ class Coord(np.ndarray):
         Returns
         -------
         out : Coord
-            shortest vector connecting self and other with the same ctype as self.
+            shortest vector connecting self and other with the same basis as self.
 
         """
         ds12 = other.to_crys() - self.to_crys()
@@ -610,7 +619,7 @@ def r2s(pos, cell):
     pos = np.asarray(pos)
     bg = np.linalg.inv(cell.lattice)
     xyzs = np.tensordot(bg, pos.T, axes=([-1], 0)).T
-    # xyzs = np.dot(bg, pos)
+    #xyzs = np.dot(bg, pos)
     return xyzs
 
 
