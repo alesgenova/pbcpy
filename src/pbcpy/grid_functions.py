@@ -52,10 +52,10 @@ class Grid_Function_Base(object):
         ''' Returns an ndarray with f(x)*g (g can be a function) '''
         if isinstance(g, type(self)):
             return self.values*g.values
-        elif isinstance(g, (int,float,complex)):
+        elif isinstance(g, (int,float,complex,np.ndarray,np.generic)):
             return self.values*g
         else:
-            return Exception
+            return self.values*g
 
     def expValues(self):
         ''' Returns exp(f(x)) '''
@@ -263,7 +263,9 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         Compute the N(=3)-dimensional inverse discrete Fourier Transform
         Returns a new Grid_Function
         '''
-        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=np.fft.ifftn(self.values)/self.grid_space.grid.dV)
+        myifft = np.fft.ifftn(self.values)
+        myifft = myifft/self.grid_space.grid.dV
+        return Grid_Function(self.grid_space, self.plot_num, griddata_3d=myifft)
 
     def exp(self):
         ''' Implements exp(f(x))
@@ -473,7 +475,7 @@ class Grid_Function(Grid_Function_Base):
         '''Returns a new Grid_Function
         real(ifft(fft(f(x)^b)*kernel)*f(x)^a*c)'''
 
-        if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(b, (int,float,complex)) and isinstance(c, (int,float,complex)):
+        if isinstance(kernel, (Grid_Function_Reciprocal,np.ndarray)):
             first_exp = self.exponentiationCnst(a)
             second_exp = self.exponentiationCnst(b)
             second_exp_tranf = second_exp.fft()
@@ -489,7 +491,7 @@ class Grid_Function(Grid_Function_Base):
         '''Returns a new Grid_Function
         real(ifft(fft(f(x)^a)*kernel)*c)'''
 
-        if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
+        if isinstance(kernel, (Grid_Function_Reciprocal,int,float,complex,np.ndarray)) and isinstance(a, (int,float,complex)) and isinstance(c, (int,float,complex)):
             exp = self.exponentiationCnst(a)
             exp_tranf = exp.fft()
             prod = exp_tranf.dot(kernel)

@@ -1,4 +1,5 @@
 from .grid_functions import Grid_Function_Base, Grid_Function, Grid_Function_Reciprocal, Grid_Space
+import numpy as np
 
 class Functional(object):
     '''
@@ -30,7 +31,7 @@ class Functional(object):
             if isinstance(potential, Grid_Function):
                 self.potential = potential
         if kernel is not None:
-            if isinstance(g, Grid_Function_Reciprocal):
+            if isinstance(kernel, (np.ndarray)):
                 self.kernel = kernel
 
 
