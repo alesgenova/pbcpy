@@ -2,7 +2,7 @@ import numpy as np
 from .constants import LEN_CONV
 
 
-class Cell(object):
+class BaseCell(object):
     """
     Definition of the lattice of a system.
 
@@ -16,7 +16,7 @@ class Cell(object):
         volume of the cell in units**3
 
     """
-    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr'):
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr', **kwargs):
         """
         Parameters
         ----------
@@ -25,12 +25,14 @@ class Cell(object):
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
             lattice is always passed as Bohr, but we can save a preferred unit for print purposes
         """
+        #print("BaseCell __init__")
         # lattice is always stored in atomic units: Bohr for direct lattices, 1/Bohr for reciprocal lattices
         self._lattice = np.asarray(lattice)
         #self.bg = np.linalg.inv(at)
         self._origin = np.asarray(origin)
         self._units = units
         self._volume = np.dot(lattice[:, 0], np.cross(lattice[:, 1], lattice[:, 2]))
+        super().__init__(**kwargs)
 
     def __eq__(self, other):
         """
@@ -61,9 +63,11 @@ class Cell(object):
         for ilat in range(3):
             lat0 = self.lattice[:, ilat]
             lat1 = other.lattice[:, ilat] * conv
-            overlap = np.dot(lat0, lat1) / np.dot(lat0, lat0)
-            if abs(1 - overlap) > eps:
+            if not np.isclose(lat0,lat1).all():
                 return False
+            #overlap = np.dot(lat0, lat1) / np.dot(lat0, lat0)
+            #if abs(1 - overlap) > eps:
+            #    return False
 
         return True
 
@@ -100,9 +104,9 @@ class Cell(object):
         #else:
         #    return Cell(at=self.at*LEN_CONV[self.units][units], units=units)
 
-class DirectCell(Cell):
+class DirectCell(BaseCell):
     
-    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr'):
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr', **kwargs):
         """
         Parameters
         ----------
@@ -111,9 +115,10 @@ class DirectCell(Cell):
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
             length units of the lattice vectors.
         """
+        #print("DirectCell __init__")
         # internally always convert the units to Bohr
         lattice *= LEN_CONV[units]["Bohr"]
-        super().__init__(lattice, origin, units)
+        super().__init__(lattice=lattice, origin=origin, units=units, **kwargs)
 
     def __eq__(self, other):
         """
@@ -153,9 +158,9 @@ class DirectCell(Cell):
         return ReciprocalCell(lattice=reciprocal_lat,units=self.units)
 
 
-class ReciprocalCell(Cell):
+class ReciprocalCell(BaseCell):
     
-    def __init__(self, lattice, units='Bohr'):
+    def __init__(self, lattice, units='Bohr', **kwargs):
         """
         Parameters
         ----------
@@ -164,9 +169,10 @@ class ReciprocalCell(Cell):
         units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
             length units of the lattice vectors.
         """
+        #print("ReciprocalCell __init__")
         # internally always convert the units to Bohr
         lattice /= LEN_CONV[units]["Bohr"]
-        super().__init__(lattice, origin=np.array([0.,0.,0.]), units=units)
+        super().__init__(lattice=lattice, units=units, **kwargs)
     
     def __eq__(self, other):
         """
@@ -237,7 +243,7 @@ class Coord(np.ndarray):
         """
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
-        if type(cell) not in [DirectCell]:
+        if not isinstance(cell, (DirectCell, ReciprocalCell)):
             raise TypeError("Coord represent coordinates in real space, cell needs to be a DirectCell")
         
         if basis not in Coord.cart_names and basis not in Coord.crys_names:
