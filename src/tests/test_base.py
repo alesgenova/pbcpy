@@ -22,6 +22,7 @@ class TestCoord(unittest.TestCase):
 
     def test_coord(self):
         # 9x12x18 cell
+        ang2bohr = LEN_CONV["Angstrom"]["Bohr"]
         cell1 = make_orthorombic_cell(9,12,18,CellClass=DirectCell,units="Angstrom")
         rpos1 = [3,6,12]
         #print(cell1.lattice)
@@ -37,6 +38,18 @@ class TestCoord(unittest.TestCase):
         rcoord2 = scoord1.to_cart()
         #print(rcoord2)
         self.assertTrue(np.isclose(rcoord2, rcoord1,rtol=1.e-5).all())
+
+        # test distance methods
+        scoord1 = Coord(pos=[0.5,0.0,1.0], cell=cell1, basis="Crystal")
+        scoord2 = Coord(pos=[0.6,-1.0,3.0], cell=cell1, basis="Crystal")
+        dcoord = scoord1.d_mic(scoord2)
+        # difference vector and distance using mic
+        self.assertTrue(np.isclose(np.asarray(dcoord), [0.1,0.0,0.0]).all())
+        self.assertAlmostEqual(scoord1.dd_mic(scoord2), 0.9*ang2bohr)
+        # difference vector and distance without mic
+        self.assertTrue(np.isclose(scoord2-scoord1, [0.1,-1.0,2.0]).all())
+        self.assertAlmostEqual((scoord2-scoord1).length(), np.sqrt((0.1*9)**2+ (-1.*12)**2+(2.*18)**2)*ang2bohr)
+
 
 
 if __name__ == "__main__":

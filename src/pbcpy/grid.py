@@ -39,11 +39,10 @@ class BaseGrid(BaseCell):
         self._nr = np.asarray(nr)
         self._nnr = nr[0] * nr[1] * nr[2]
         self._dV = self._volume / self._nnr
-        self._r = None
-        self._s = None
-        self._calc_gridpoints(convention)
+        self._r = None # initialize them on request
+        self._s = None # initialize them on request
 
-    def _calc_gridpoints(self,convention):
+    def _calc_grid_crys_points(self,convention="mic"):
         if self.r is None:
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
@@ -65,7 +64,11 @@ class BaseGrid(BaseCell):
 
                 S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
             self._s = Coord(S, cell=self, basis='Crystal')
-            self._r = self.s.to_cart()
+
+    def _calc_grid_cart_points(self):
+        if self._s is None:
+            self._calc_grid_crys_points()
+        self._r = self._s.to_cart()
 
     def _calc_mask(self, ref_points):
 
@@ -85,10 +88,14 @@ class BaseGrid(BaseCell):
 
     @property
     def r(self):
+        if self._r is None:
+            self._calc_grid_cart_points()
         return self._r
 
     @property
     def s(self):
+        if self._s is None:
+            self._calc_grid_crys_points()
         return self._s
     @property
     def nr(self):
