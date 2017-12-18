@@ -12,15 +12,24 @@ from common import run_test_orthorombic, run_test_triclinic, make_orthorombic_ce
 class TestCell(unittest.TestCase):
     
     def test_orthorombic_cell(self):
+        print()
+        print("*"*50)
+        print("Testing orthorombic DirectCell")
         run_test_orthorombic(self, DirectCell)
 
     def test_triclinic_cell(self):
+        print()
+        print("*"*50)
+        print("Testing triclinic DirectCell")
         run_test_triclinic(self, DirectCell)
     
 
 class TestCoord(unittest.TestCase):
 
     def test_coord(self):
+        print()
+        print("*"*50)
+        print("Testing Coord")
         # 9x12x18 cell
         ang2bohr = LEN_CONV["Angstrom"]["Bohr"]
         cell1 = make_orthorombic_cell(9,12,18,CellClass=DirectCell,units="Angstrom")

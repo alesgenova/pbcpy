@@ -1,8 +1,9 @@
 import numpy as np
 from scipy import ndimage
-from .grid import Grid, Grid_Space
+from .grid import DirectGrid, ReciprocalGrid
+from .constants import LEN_CONV
 
-class ScalarField(np.ndarray):
+class BaseScalarField(np.ndarray):
     '''
     Extended numpy array representing a scalar field on a grid
     (Cell (lattice) plus discretization)
@@ -15,7 +16,8 @@ class ScalarField(np.ndarray):
     grid : Grid
         Represent the domain of the function
 
-    ndim : number of dimensions of the grid
+    span : number of directions for which we have more than 1 point
+            e.g.: for np.zeros((5,5,1)) -> ndim = 3, span = 2
 
     memo : optional string to label the field
 
@@ -36,16 +38,20 @@ class ScalarField(np.ndarray):
         obj = np.asarray(input_values).view(cls)
         # add the new attribute to the created instance
         obj.grid = grid
-        obj.ndim = (grid.nr > 1).sum()
+        obj.span = (grid.nr > 1).sum()
         obj.memo = str(memo)
         # Finally, we must return the newly created object:
         return obj
 
     def __array_finalize__(self, obj):
         # Restore attributes when we are taking a slice
+        #print("BaseScalarField __array_finalize__")
+        #print(type(self))
+        #print(type(obj))
+        #print(type(args[0]))
         if obj is None: return
         self.grid = getattr(obj, 'grid', None)
-        self.ndim = getattr(obj, 'ndim', None)
+        self.span = getattr(obj, 'span', None)
         self.memo = getattr(obj, 'memo', None)
 
     def integral(self):
@@ -53,18 +59,23 @@ class ScalarField(np.ndarray):
         return np.einsum('ijk->',self)*self.grid.dV
 
 
-class DirectScalarField(ScalarField):
+class DirectScalarField(BaseScalarField):
     spl_order = 3
 
     def __new__(cls, grid, memo="", griddata_F=None, griddata_C=None, griddata_3d=None):
-        obj = super().__new__(cls, grid, memo="", griddata_F=None, griddata_C=None, griddata_3d=None)
+        if not isinstance(grid, DirectGrid):
+            raise TypeError("the grid argument is not an instance of DirectGrid")
+        obj = super().__new__(cls, grid, memo="", griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
         obj.spl_coeffs = None
         return obj
 
     def __array_finalize__(self, obj):
         # Restore attributes when we are taking a slice
+        #print("DirectScalarField __array_finalize__")
+        #print(type(self))
+        #print(type(obj))
         if obj is None: return
-        super().__array_finalize__(self,obj)
+        super().__array_finalize__(obj)
         self.spl_coeffs = None
 
     def _calc_spline(self):
@@ -97,11 +108,11 @@ class DirectScalarField(ScalarField):
 
     def get_values_flatarray(self, pad=0, order='F'):
         if pad > 0:
-            if self.ndim == 1:
+            if self.span == 1:
                 pad_tup = ((0,pad),(0,0),(0,0))
-            elif self.ndim == 2:
+            elif self.span == 2:
                 pad_tup = ((0,pad),(0,pad),(0,0))
-            elif self.ndim == 3:
+            elif self.span == 3:
                 pad_tup = ((0,pad),(0,pad),(0,pad))
             vals = np.pad(self, (0,pad), mode='wrap')
         else:
@@ -130,7 +141,8 @@ class DirectScalarField(ScalarField):
         X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
         new_values = ndimage.map_coordinates(
             self.spl_coeffs, [X, Y, Z], mode='wrap')
-        new_grid = Grid(self.grid.lattice, nr_new, units=self.grid.units)
+        new_lattice = self.grid.lattice*LEN_CONV["Bohr"][self.grid.units]
+        new_grid = DirectGrid(new_lattice, nr_new, units=self.grid.units)
         return DirectScalarField(new_grid, self.memo, griddata_3d=new_values)
 
     def get_plotcut(self, x0, r0, r1=None, r2=None, nr=10):
@@ -145,27 +157,27 @@ class DirectScalarField(ScalarField):
         x0, r0, r1, r2 are all in crystal coordinates
         """
 
-        ndim = 1
+        span = 1
 
         x0 = x0.to_crys()
         r0 = r0.to_crys()
         if r1 is not None:
             r1 = r1.to_crys()
-            ndim += 1
+            span += 1
             if r2 is not None:
                 r2 = r2.to_crys()
-                ndim += 1
+                span += 1
         nrx = np.ones(3, dtype=int)
         if isinstance(nr, (int, float)):
-            nrx[0:ndim] = nr
+            nrx[0:span] = nr
         elif isinstance(nr, (np.ndarray, list, tuple)):
-            nrx[0:ndim] = np.asarray(nr, dtype=int)
+            nrx[0:span] = np.asarray(nr, dtype=int)
 
         dr = np.zeros((3, 3), dtype=float)
         dr[0, :] = (r0) / nrx[0]
-        if ndim > 1:
+        if span > 1:
             dr[1, :] = (r1) / nrx[1]
-            if ndim == 3:
+            if span == 3:
                 dr[2, :] = (r2) / nrx[2]
         points = np.zeros((nrx[0], nrx[1], nrx[2], 3))
         axis = []
@@ -194,7 +206,7 @@ class DirectScalarField(ScalarField):
         # We still need to define 3 lattice vectors even if the plot is in 1D/2D
         # Here we ensure the 'ficticious' vectors are orthonormal to the actual ones
         # so that units of length/area are correct.
-        if ndim == 1:
+        if span == 1:
             for i in range(3):
                 if abs(v0[i]) > 1e-4:
                     j = i - 1
@@ -204,11 +216,11 @@ class DirectScalarField(ScalarField):
                     break
             v2 = np.cross(v0,v1)
             v2 = v2 / np.sqrt(np.dot(v2,v2))
-        elif ndim  == 2:
+        elif span  == 2:
             v1 = r1.to_cart()
             v2 = np.cross(v0,v1)
             v2 = v2/ np.sqrt(np.dot(v2,v2))
-        elif ndim == 3:
+        elif span == 3:
             v1 = r1.to_cart()
             v2 = r2.to_cart()
         at[:,0] = v0
@@ -217,26 +229,28 @@ class DirectScalarField(ScalarField):
 
         cut_grid = Grid(lattice=at, nr=nrx, origin=origin, units=x0.cell.units)
 
-        if ndim == 1:
+        if span == 1:
             values = values.reshape((a))
-        elif ndim == 2:
+        elif span == 2:
             values = values.reshape((a, b))
-        elif ndim == 3:
+        elif span == 3:
             values = values.reshape((a, b, c))
 
         return DirectScalarField(grid=cut_grid, memo=self.memo, griddata_3d=values)
 
-class ReciprocalScalarField(ScalarField):
+class ReciprocalScalarField(BaseScalarField):
 
     def __new__(cls, grid, memo="", griddata_F=None, griddata_C=None, griddata_3d=None):
-        obj = super().__new__(cls, grid, memo="", griddata_F=None, griddata_C=None, griddata_3d=None)
+        if not isinstance(grid, ReciprocalGrid):
+            raise TypeError("the grid argument is not an instance of ReciprocalGrid")
+        obj = super().__new__(cls, grid, memo="", griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
         obj.spl_coeffs = None
         return obj
 
     def __array_finalize__(self, obj):
         # Restore attributes when we are taking a slice
         if obj is None: return
-        super().__array_finalize__(self,obj)
+        super().__array_finalize__(obj)
         self.spl_coeffs = None
 
     def ifft(self):
