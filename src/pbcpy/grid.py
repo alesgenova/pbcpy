@@ -161,7 +161,7 @@ class BaseGrid(BaseCell):
 
 class DirectGrid(BaseGrid,DirectCell):
     
-    def __init__(self, lattice, nr, origin=np.array([0.,0.,0.]), units='Bohr', **kwargs):
+    def __init__(self, lattice, nr, origin=np.array([0.,0.,0.]), units=None, **kwargs):
         """
         Parameters
         ----------
@@ -199,7 +199,7 @@ class DirectGrid(BaseGrid,DirectCell):
             fac = 2*np.pi
         bg = fac*np.linalg.inv(self.lattice)
         bg = bg.T
-        bg = bg/LEN_CONV["Bohr"][self.units]
+        #bg = bg/LEN_CONV["Bohr"][self.units]
         reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
 
         return ReciprocalGrid(lattice=reciprocal_lat,nr=self.nr,units=self.units)
@@ -207,7 +207,7 @@ class DirectGrid(BaseGrid,DirectCell):
 
 class ReciprocalGrid(BaseGrid, ReciprocalCell):
     
-    def __init__(self, lattice, nr, units='Bohr', **kwargs):
+    def __init__(self, lattice, nr, units=None, **kwargs):
         """
         Parameters
         ----------
@@ -244,7 +244,7 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
         if convention == 'physics' or convention == 'p':
             fac = 1./(2*np.pi)
         at = np.linalg.inv(self.lattice.T*fac)
-        at = at*LEN_CONV["Bohr"][self.units]
+        #at = at*LEN_CONV["Bohr"][self.units]
         direct_lat = np.einsum('ij,j->ij',at,1./scale)
         
         return DirectGrid(lattice=direct_lat,nr=self.nr,units=self.units)

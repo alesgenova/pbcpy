@@ -33,7 +33,7 @@ class TestCoord(unittest.TestCase):
         # 9x12x18 cell
         ang2bohr = LEN_CONV["Angstrom"]["Bohr"]
         cell1 = make_orthorombic_cell(9,12,18,CellClass=DirectCell,units="Angstrom")
-        rpos1 = [3,6,12]
+        rpos1 = np.array([3,6,12])*ang2bohr
         #print(cell1.lattice)
         rcoord1 = Coord(pos=rpos1, cell=cell1, basis="Cartesian")
         #print(rcoord1)

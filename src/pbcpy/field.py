@@ -141,7 +141,7 @@ class DirectScalarField(BaseScalarField):
         X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
         new_values = ndimage.map_coordinates(
             self.spl_coeffs, [X, Y, Z], mode='wrap')
-        new_lattice = self.grid.lattice*LEN_CONV["Bohr"][self.grid.units]
+        new_lattice = self.grid.lattice #*LEN_CONV["Bohr"][self.grid.units]
         new_grid = DirectGrid(new_lattice, nr_new, units=self.grid.units)
         return DirectScalarField(new_grid, self.memo, griddata_3d=new_values)
 

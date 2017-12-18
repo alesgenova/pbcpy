@@ -41,7 +41,7 @@ class PP(object):
                 at *= celldm[0]
             else:
                 at = self.celldm2at(ibrav, celldm)
-            grid = DirectGrid(lattice=at, nr=nrx, units='Bohr')
+            grid = DirectGrid(lattice=at, nr=nrx, units=None)
 
             # gcutm, dual, ecut, plot_num
             # gcutm, dual, ecut, plot_num = (float(x) for x in filepp.readline().split())

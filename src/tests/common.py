@@ -19,9 +19,9 @@ def run_test_orthorombic(self, cell_cls, nr=None):
     qe_reciprocal *= 2*np.pi/qe_alat
 
     ang2bohr = LEN_CONV["Angstrom"]["Bohr"]
-    #print()
+    #print("cell")
     cell = make_orthorombic_cell(A,B,C,CellClass=cell_cls,nr=nr,units="Angstrom")
-    #print()
+    #print("cell1")
     cell1 = make_orthorombic_cell(A*ang2bohr,B*ang2bohr,C*ang2bohr,CellClass=cell_cls,nr=nr,units="Bohr")
     #print()
     #print(cell.lattice)
@@ -35,6 +35,7 @@ def run_test_orthorombic(self, cell_cls, nr=None):
     self.assertTrue(np.isclose(act,ref).all())
 
     # ReciprocalCell, check if it matches QE
+    #print("reciprocal")
     reciprocal = cell.get_reciprocal(convention="p")
     ref = qe_reciprocal
     act = reciprocal.lattice
@@ -42,6 +43,7 @@ def run_test_orthorombic(self, cell_cls, nr=None):
     self.assertTrue(np.isclose(act,ref).all())
     
     # back to the DirectCell, check if it matches QE
+    #print("direct")
     direct = reciprocal.get_direct(convention="p")
     ref = qe_direct
     act = direct.lattice
@@ -104,10 +106,11 @@ def make_orthorombic_cell(A,B,C, CellClass, nr=None, units="Angstrom"):
     lattice[0,0] = A
     lattice[1,1] = B
     lattice[2,2] = C
+    lattice *= LEN_CONV[units]["Bohr"] # pbcpy doesn't have units for the time being, always feed it Bohr
     if nr is None:
-        return CellClass(lattice=lattice, origin=[0,0,0], units=units)
+        return CellClass(lattice=lattice, origin=[0,0,0], units=None)
     else:
-        return CellClass(lattice=lattice, nr=nr, origin=[0,0,0], units=units)
+        return CellClass(lattice=lattice, nr=nr, origin=[0,0,0], units=None)
 
 def make_triclinic_cell(A,B,C, alpha, beta, gamma, CellClass, nr=None, units="Angstrom"):
     lattice = np.zeros((3,3))
@@ -118,7 +121,8 @@ def make_triclinic_cell(A,B,C, alpha, beta, gamma, CellClass, nr=None, units="An
                     C*np.sqrt( 1. + 2.*np.cos(alpha)*np.cos(beta)*np.cos(gamma)
                     - np.cos(alpha)**2-np.cos(beta)**2-np.cos(gamma)**2 )/np.sin(gamma)
     )
+    lattice *= LEN_CONV[units]["Bohr"] # pbcpy doesn't have units for the time being, always feed it Bohr
     if nr is None:
-        return CellClass(lattice=lattice, origin=[0,0,0], units=units)
+        return CellClass(lattice=lattice, origin=[0,0,0], units=None)
     else:
-        return CellClass(lattice=lattice, nr=nr, origin=[0,0,0], units=units)
+        return CellClass(lattice=lattice, nr=nr, origin=[0,0,0], units=None)

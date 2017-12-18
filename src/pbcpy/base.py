@@ -1,5 +1,6 @@
+import warnings
 import numpy as np
-from .constants import LEN_CONV
+from .constants import LEN_CONV, units_warning
 
 
 class BaseCell(object):
@@ -16,7 +17,7 @@ class BaseCell(object):
         volume of the cell in units**3
 
     """
-    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr', **kwargs):
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units=None, **kwargs):
         """
         Parameters
         ----------
@@ -30,7 +31,9 @@ class BaseCell(object):
         self._lattice = np.asarray(lattice)
         #self.bg = np.linalg.inv(at)
         self._origin = np.asarray(origin)
-        self._units = units
+        if units is not None:
+            warnings.warn(units_warning, DeprecationWarning)
+        self._units = None
         self._volume = np.dot(lattice[:, 0], np.cross(lattice[:, 1], lattice[:, 2]))
         super().__init__(**kwargs)
 
@@ -77,6 +80,7 @@ class BaseCell(object):
 
     @property
     def units(self):
+        #warnings.warn(units_warning, DeprecationWarning)
         return self._units
 
     @property
@@ -106,7 +110,7 @@ class BaseCell(object):
 
 class DirectCell(BaseCell):
     
-    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units='Bohr', **kwargs):
+    def __init__(self, lattice, origin=np.array([0.,0.,0.]), units=None, **kwargs):
         """
         Parameters
         ----------
@@ -117,7 +121,7 @@ class DirectCell(BaseCell):
         """
         #print("DirectCell __init__")
         # internally always convert the units to Bohr
-        lattice *= LEN_CONV[units]["Bohr"]
+        #lattice *= LEN_CONV[units]["Bohr"]
         super().__init__(lattice=lattice, origin=origin, units=units, **kwargs)
 
     def __eq__(self, other):
@@ -152,7 +156,7 @@ class DirectCell(BaseCell):
             fac = 2*np.pi
         bg = fac*np.linalg.inv(self.lattice)
         bg = bg.T
-        bg = bg/LEN_CONV["Bohr"][self.units]
+        #bg = bg/LEN_CONV["Bohr"][self.units]
         reciprocal_lat = np.einsum('ij,j->ij',bg,scale)            
 
         return ReciprocalCell(lattice=reciprocal_lat,units=self.units)
@@ -160,7 +164,7 @@ class DirectCell(BaseCell):
 
 class ReciprocalCell(BaseCell):
     
-    def __init__(self, lattice, units='Bohr', **kwargs):
+    def __init__(self, lattice, units=None, **kwargs):
         """
         Parameters
         ----------
@@ -171,7 +175,7 @@ class ReciprocalCell(BaseCell):
         """
         #print("ReciprocalCell __init__")
         # internally always convert the units to Bohr
-        lattice /= LEN_CONV[units]["Bohr"]
+        #lattice /= LEN_CONV[units]["Bohr"]
         super().__init__(lattice=lattice, units=units, **kwargs)
     
     def __eq__(self, other):
@@ -205,7 +209,7 @@ class ReciprocalCell(BaseCell):
         if convention == 'physics' or convention == 'p':
             fac = 1./(2*np.pi)
         at = np.linalg.inv(self.lattice.T*fac)
-        at = at*LEN_CONV["Bohr"][self.units]
+        #at = at*LEN_CONV["Bohr"][self.units]
         direct_lat = np.einsum('ij,j->ij',at,1./scale)
         
         return DirectCell(lattice=direct_lat,units=self.units,origin=np.array([0.,0.,0.]))
@@ -253,7 +257,8 @@ class Coord(np.ndarray):
         obj = np.asarray(pos, dtype=float).view(cls)
 
         if basis in Coord.cart_names:
-            obj *= LEN_CONV[cell.units]["Bohr"]
+            #obj *= LEN_CONV[cell.units]["Bohr"]
+            pass
         # add the new attribute to the created instance
         obj._basis = basis
         #
@@ -321,7 +326,7 @@ class Coord(np.ndarray):
             return self
         else:
             pos = s2r(self, self.cell)
-            pos *= LEN_CONV["Bohr"][self.cell.units]
+            #pos *= LEN_CONV["Bohr"][self.cell.units]
             return Coord(pos=pos, cell=self.cell, basis=Coord.cart_names[0])
 
     def to_crys(self):

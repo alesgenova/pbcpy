@@ -17,3 +17,5 @@ LEN_CONV['m'] = {
     'Bohr': 1.8897261254535427e10,
     'Angstrom': 1.0e10, 'nm': 1.0e9, 'm': 1.0
 }
+
+units_warning = "Please only feed pbcpy quantities in atomic units (Bohr). An automatic units system might be implemented in the future"
