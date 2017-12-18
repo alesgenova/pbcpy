@@ -45,3 +45,16 @@ class TestField(unittest.TestCase):
         # fft
         reciprocal_field = field.fft()
         self.assertAlmostEqual(N, reciprocal_field[0,0,0])
+
+        # ifft
+        field1 = reciprocal_field.ifft(check_real=True)
+        N1 = field1.integral()
+        self.assertAlmostEqual(N,N1)
+
+    def test_reciprocal_scalar_field(self):
+        print()
+        print("*"*50)
+        print("Testing ReciprocalScalarField")
+        print("TODO: Michele, some simple tests for which we have analytic solutions?")
+        # TODO: Michele, some simple tests for which we have analytic solutions?
+        pass

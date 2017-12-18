@@ -1,9 +1,8 @@
 import numpy as np
-from ..grid import Grid
-from ..grid_functions import Grid_Function_Base
+from ..grid import DirectGrid
+from ..field import DirectScalarField
 from ..system import System
 from ..atom import Atom
-from ..system import System
 
 
 class PP(object):
@@ -42,7 +41,7 @@ class PP(object):
                 at *= celldm[0]
             else:
                 at = self.celldm2at(ibrav, celldm)
-            grid = Grid(at, nrx, units='Bohr')
+            grid = DirectGrid(lattice=at, nr=nrx, units='Bohr')
 
             # gcutm, dual, ecut, plot_num
             # gcutm, dual, ecut, plot_num = (float(x) for x in filepp.readline().split())
@@ -88,9 +87,9 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = Grid_Function_Base(grid, plot_num, griddata_pp=ppgrid)
+            plot = DirectScalarField(grid=grid, griddata_F=ppgrid)
 
-            return System(atoms, grid, name=self.title, plot=plot)
+            return System(atoms, grid, name=self.title, field=plot)
 
     def writepp(self, system):
 
@@ -131,13 +130,14 @@ class PP(object):
             #    mywrite(filepp,ion.typ+1,False)
 
             # plot
-            nlines = self.grid.nnr // val_per_line
-            grid_pp = self.plot.get_values_1darray(order='F')
-            for iline in range(nlines):
-                igrid = iline * val_per_line
-                mywrite(filepp, grid_pp[igrid:igrid + val_per_line], True)
-            igrid = (iline + 1) * val_per_line
-            mywrite(filepp, grid_pp[igrid:self.grid.nnr], True)
+            #nlines = system.field.grid.nnr // val_per_line
+            #grid_pp = system.field.get_values_1darray(order='F')
+            #for iline in range(nlines):
+            #    igrid = iline * val_per_line
+            #    mywrite(filepp, grid_pp[igrid:igrid + val_per_line], True)
+            #igrid = (iline + 1) * val_per_line
+            #mywrite(filepp, grid_pp[igrid:self.grid.nnr], True)
+            pass
 
     def celldm2at(self, ibrav, celldm):
 
@@ -151,7 +151,7 @@ class PP(object):
             at[:, 2] = 0.5 * celldm[0] * np.array([-1., 1., 0.])
         else:
             # implement all the other Bravais lattices
-            pass
+            raise NotImplementedError("celldm2at is only implemented for ibrav = 0 and ibrav = 1")
 
         return at
 
@@ -166,7 +166,7 @@ class Ions(object):
 
         for iat in range(nat):
             self.ions.append(Atom(Zval=zv[ityp[iat]], pos=tau[
-                             :, iat], typ=ityp[iat], label=atm[ityp[iat]]))
+                             :, iat], typ=ityp[iat], label=atm[ityp[iat]], cell=cell))
 
 
 def mywrite(fileobj, iterable, newline):

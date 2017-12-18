@@ -253,7 +253,7 @@ class ReciprocalScalarField(BaseScalarField):
         super().__array_finalize__(obj)
         self.spl_coeffs = None
 
-    def ifft(self):
+    def ifft(self, check_real=False):
         '''
         Implements the Inverse Discrete Fourier Transform
         - Standard FFTs -
@@ -261,4 +261,8 @@ class ReciprocalScalarField(BaseScalarField):
         Returns a new Grid_Function
         '''
         direct_grid = self.grid.get_direct()
-        return DirectScalarField(grid=direct_grid, memo=self.memo, griddata_3d=np.fft.ifftn(self)/self.grid.dV)
+        griddata_3d = np.fft.ifftn(self)/direct_grid.dV
+        if check_real:
+            if np.isclose(np.imag(griddata_3d),0.,atol=1.e-20).all():
+                griddata_3d = np.real(griddata_3d)
+        return DirectScalarField(grid=direct_grid, memo=self.memo, griddata_3d=griddata_3d)

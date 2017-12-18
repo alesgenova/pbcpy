@@ -1,1 +1,4 @@
 notebooks/* linguist-documentation
+*.ipynb linguist-generated=true
+*.pp linguist-generated=true
+*.xsf linguist-generated=true
