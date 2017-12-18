@@ -21,34 +21,47 @@ def ThomasFermiEnergy(self):
     return edens
 
 
-def vonWeizsackerPotential(self):
+def vonWeizsackerPotential(self,SmoothingFactor=None):
     '''
     The von Weizsacker Potential
     '''
+    if SmoothingFactor is not None: 
+        if not isinstance(SmoothingFactor,(np.generic,int,float)):
+            print('Bad type for SmoothingFactor')
+            return Exception
+    else:
+        SmoothingFactor = 0.025
+ 
     sqdens_real_space = Grid_Function(self.grid_space,griddata_3d=np.sqrt(self.values))
     g2 = self.grid_space.reciprocal_grid.dist_values()**2
     sqdens_g = sqdens_real_space.fft()
     # get the gradient of sqrt(rho)
     # damp a bit the g vectors - otherwise numerics goes over the roof!
-    nabla2_sqdens = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g2*np.exp(-2*g2*0.025**2)*sqdens_g.values)
+    nabla2_sqdens = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g2*np.exp(-2*g2*SmoothingFactor**2)*sqdens_g.values)
     #
     v = Grid_Function(self.grid_space,plot_num=self.plot_num, griddata_3d=0.5*(nabla2_sqdens.ifft().values/sqdens_real_space.values)).real()
     return v
 
-
-def vonWeizsackerEnergy(self):
+def vonWeizsackerEnergy(self,SmoothingFactor=None):
     '''
     The von Weizsacker Energy Density
     '''
+    if SmoothingFactor is not None: 
+        if not isinstance(SmoothingFactor,(np.generic,int,float)):
+            print('Bad type for SmoothingFactor')
+            return Exception
+    else:
+        SmoothingFactor = 0.025
+   
     sqdens_real_space = Grid_Function(self.grid_space,griddata_3d=np.sqrt(self.values))
     g = self.grid_space.reciprocal_grid.r
     g2 = self.grid_space.reciprocal_grid.dist_values()**2
     sqdens_g = sqdens_real_space.fft()
     # get the gradient of sqrt(rho)
     # damp a bit the g vectors - otherwise numerics goes over the roof!
-    nabla_sqdens_x = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g[:,:,:,0]*np.exp(-g2*0.025**2)*1j*sqdens_g.values)
-    nabla_sqdens_y = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g[:,:,:,1]*np.exp(-g2*0.025**2)*1j*sqdens_g.values)
-    nabla_sqdens_z = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g[:,:,:,2]*np.exp(-g2*0.025**2)*1j*sqdens_g.values)
+    nabla_sqdens_x = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g[:,:,:,0]*np.exp(-g2*SmoothingFactor**2)*1j*sqdens_g.values)
+    nabla_sqdens_y = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g[:,:,:,1]*np.exp(-g2*SmoothingFactor**2)*1j*sqdens_g.values)
+    nabla_sqdens_z = Grid_Function_Reciprocal(self.grid_space,griddata_3d=g[:,:,:,2]*np.exp(-g2*SmoothingFactor**2)*1j*sqdens_g.values)
     #
     edens = Grid_Function(self.grid_space,plot_num=self.plot_num, griddata_3d=0.5*(nabla_sqdens_x.ifft().values**2+nabla_sqdens_y.ifft().values**2+nabla_sqdens_z.ifft().values**2)).real()
     return edens

@@ -35,4 +35,7 @@ class Functional(object):
                 self.kernel = kernel
 
 
-
+    def sum(self,other):
+        energydensity = self.energydensity.sum(other.energydensity)
+        potential = self.potential.sum(other.potential)
+        return Functional(energydensity=energydensity,potential=potential)

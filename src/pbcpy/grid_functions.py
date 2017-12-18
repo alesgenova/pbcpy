@@ -254,7 +254,7 @@ class Grid_Function_Reciprocal(Grid_Function_Base):
         super().__init__(self.grid, plot_num, griddata_pp, griddata_3d)
 
     def clone(self):
-        return Grid_Function_Reciprocal(self.grid_space,plot_num=self.plot_num, griddata_pp=self.griddata_pp, griddata_3d=self.griddata_3d)
+        return Grid_Function_Reciprocal(self.grid_space,plot_num=self.plot_num, griddata_3d=self.griddata_3d)
 
     def ifft(self):
         '''
