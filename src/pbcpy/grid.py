@@ -39,36 +39,8 @@ class BaseGrid(BaseCell):
         self._nr = np.asarray(nr)
         self._nnr = nr[0] * nr[1] * nr[2]
         self._dV = self._volume / self._nnr
-        self._r = None # initialize them on request
-        self._s = None # initialize them on request
-
-    def _calc_grid_crys_points(self,convention="mic"):
-        if self.r is None:
-            S = np.ndarray(shape=(self.nr[0], self.nr[
-                           1], self.nr[2], 3), dtype=float)
-            if convention == 'mic' or convention == 'mic_scaled':
-                ax = []
-                for i in range(3):
-                    # use fftfreq function so we don't have to worry about odd or even number of points
-                    dd=1
-                    if convention == 'mic_scaled':
-                        dd=1/self.nr[i]
-                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
-                    work = np.zeros(self.nr[i])
-                S[:, :, :, 0], S[:, :, :, 1], S[
-                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            else:
-                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
-                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
-                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
-
-                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
-            self._s = Coord(S, cell=self, basis='Crystal')
-
-    def _calc_grid_cart_points(self):
-        if self._s is None:
-            self._calc_grid_crys_points()
-        self._r = self._s.to_cart()
+        #self._r = None # initialize them on request
+        #self._s = None # initialize them on request
 
     def _calc_mask(self, ref_points):
 
@@ -175,6 +147,36 @@ class DirectGrid(BaseGrid,DirectCell):
         # lattice is already scaled inside the super()__init__, no need to do it here
         #lattice *= LEN_CONV[units]["Bohr"]
         super().__init__(lattice=lattice, nr=nr, origin=origin, units=units, **kwargs)
+        self._r = None
+        self._s = None
+
+    def _calc_grid_crys_points(self,convention="mic"):
+        if self.r is None:
+            S = np.ndarray(shape=(self.nr[0], self.nr[
+                           1], self.nr[2], 3), dtype=float)
+            if convention == 'mic' or convention == 'mic_scaled':
+                ax = []
+                for i in range(3):
+                    # use fftfreq function so we don't have to worry about odd or even number of points
+                    dd=1
+                    if convention == 'mic_scaled':
+                        dd=1/self.nr[i]
+                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
+                    work = np.zeros(self.nr[i])
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
+            else:
+                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
+                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
+                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
+
+                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
+            self._s = Coord(S, cell=self, basis='Crystal')
+
+    def _calc_grid_cart_points(self):
+        if self._s is None:
+            self._calc_grid_crys_points()
+        self._r = self._s.to_cart()
 
     def get_reciprocal(self,scale=[1.,1.,1.],convention='physics'):
         """
@@ -221,6 +223,32 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
         # lattice is already scaled inside the super()__init__, no need to do it here
         #lattice /= LEN_CONV[units]["Bohr"]
         super().__init__(lattice=lattice, nr=nr, origin=np.array([0.,0.,0.]), units=units, **kwargs)
+        self._g = None
+        self._s = None
+        self._gg = None
+
+    def _calc_grid_crys_points(self,convention="mic"):
+        if self.r is None:
+            S = np.ndarray(shape=(self.nr[0], self.nr[
+                           1], self.nr[2], 3), dtype=float)
+            if convention == 'mic' or convention == 'mic_scaled':
+                ax = []
+                for i in range(3):
+                    # use fftfreq function so we don't have to worry about odd or even number of points
+                    dd=1
+                    if convention == 'mic_scaled':
+                        dd=1/self.nr[i]
+                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
+                    work = np.zeros(self.nr[i])
+                S[:, :, :, 0], S[:, :, :, 1], S[
+                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
+            else:
+                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
+                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
+                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
+
+                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
+            self._s = Coord(S, cell=self, basis='Crystal')
 
     def get_direct(self,scale=[1.,1.,1.],convention='physics'):
         """
