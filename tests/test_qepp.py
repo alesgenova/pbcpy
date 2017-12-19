@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import sys
-from env import PBC_SRC
+from tests.env import PBC_SRC
 #sys.path.insert(0,"../")
 sys.path.insert(0,PBC_SRC)
 #from pbcpy.base import DirectCell, ReciprocalCell, Coord
@@ -15,7 +15,7 @@ class TestQEPP(unittest.TestCase):
         print()
         print("*"*50)
         print("Testing format.qepp.PP read()")
-        dimer = PP(filepp="./density_ks.pp").read()
+        dimer = PP(filepp="tests/density_ks.pp").read()
         rho_r = dimer.field
         self.assertAlmostEqual(rho_r.integral(),16)
         
