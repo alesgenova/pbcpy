@@ -268,7 +268,7 @@ pbcpy.grid.DirectGrid
 - Any method inherited from `numpy.array`.
 - `integral` : returns the integral of the field.
 - `get_3dinterpolation` : Interpolates the data to a different grid (returns a new `DirectScalarField` object). 3rd order spline interpolation.
-- `get_base_funccut(x0, r0, [r1], [r2], [nr])` : Get 1D/2D/3D cuts of the data, by providing arbitraty vectors and an origin.
+- `get_cut(r0, [r1], [r2], [origin], [center], [nr])` : Get 1D/2D/3D cuts of the scalar field, by providing arbitraty vectors and an origin/center.
 - `fft` : Calculates the Fouries transform of self, and returns an instance of `ReciprocalScalarField`, which contains the appropriate `ReciprocalGrid`
 
 ```python
