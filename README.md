@@ -69,7 +69,7 @@ array([[ 10.,   0.,   0.],
 Note, by default the physics convention is used when converting between direct and reciprocal lattice:
 
 ```math
-transpose(reciprocal.lattice) = 2*pi * inverse(direct.lattice)
+\big[\text{reciprocal.lattice}\big]^T = 2\pi \cdot \big[\text{direct.lattice}\big]^{-1}
 ```
 
 ```python
