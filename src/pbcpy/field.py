@@ -57,8 +57,8 @@ class BaseScalarField(np.ndarray):
 
     def integral(self):
         ''' Returns the integral of self '''
-        #return np.einsum('ijk->',self)*self.grid.dV
-        return float(np.sum(self))*self.grid.dV
+        return np.einsum('ijk->',self)*self.grid.dV
+        #return float(np.sum(self))*self.grid.dV
 
 
 class DirectScalarField(BaseScalarField):
