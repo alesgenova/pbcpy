@@ -13,23 +13,12 @@ class BaseGrid(BaseCell):
     ----------
     nr : array of numbers used for discretization
 
-    nnr : total number of subcells
+    nnr : total number of grid points
 
-    dV : volume of a subcell
+    dV : volume of a grid point
 
-    r : vectors in cartesian coordinates identifying the subcells
-
-    s : vectors in crystal coordinates identifying the subcells
-
-    Note:
-    
-    It is possible to choose between 3 different conventions for coordinates:
-    - mic : 'mic'
-        MIC convention.
-    - mic_scaled : 'mic_scaled'
-        MIC convention. Each vector i is scaled by multiplying it for nr[i]
-    - normal (any other string would stick with this choice).
-        NO MIC conversion.
+    Node:
+    Virtual class, DirectGrid and ReciprocalGrid should be used in actual applications
 
     '''
 
@@ -58,17 +47,6 @@ class BaseGrid(BaseCell):
                             mask[i, j, k] = 0.
         return mask
 
-    @property
-    def r(self):
-        if self._r is None:
-            self._calc_grid_cart_points()
-        return self._r
-
-    @property
-    def s(self):
-        if self._s is None:
-            self._calc_grid_crys_points()
-        return self._s
     @property
     def nr(self):
         return self._nr
@@ -99,39 +77,17 @@ class BaseGrid(BaseCell):
     #    else:
     #        return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
-    def square_dist_values(self,center_array=[0.,0.,0.]):
-        '''Returns a ndarray with
-        square distance from center_array of
-        grid points in cartesian coordinates
-        '''
-        # assuming ctype=crystal if center_array is not a Coord object
-        if isinstance(center_array, (Coord)):
-            center = center_array
-        else:
-            center = Coord(center_array, cell=self, basis='Crystal', units=self.units)
-        center_cart = center.to_cart()
-        val = np.einsum('ijkl,ijkl->ijk',self.r-center_cart,self.r-center_cart)
-        return val
-
-    def dist_values(self,center_array=[0.,0.,0.]):
-        '''Returns a ndarray with
-        the distance from center_array of
-        grid points in cartesian coordinates
-        '''
-        return np.sqrt(self.square_dist_values(center_array))
-
-    def gaussianValues(self,alpha=0.1,center_array=[0.,0.,0.]):
-        '''Returns a ndarray with
-        the values of the gaussian
-        (1/(alpha*sqrt(2pi)))*exp(-square_dist_values(center_array)/(2.0*alpha**2))
-        centered on center_array
-        '''
-        if isinstance(alpha, (int,float,complex)):
-            return (1.0/(alpha*np.sqrt(2.0*np.pi)))*np.exp(-self.square_dist_values(center_array)/(2.0*alpha**2))
-        else:
-            return Exception
 
 class DirectGrid(BaseGrid,DirectCell):
+    """
+        Attributes:
+        ----------
+        All of BaseGrid and DirectCell
+
+        r : cartesian coordinates of each grid point
+
+        s : crystal coordinates of each grid point
+    """
     
     def __init__(self, lattice, nr, origin=np.array([0.,0.,0.]), units=None, **kwargs):
         """
@@ -150,33 +106,33 @@ class DirectGrid(BaseGrid,DirectCell):
         self._r = None
         self._s = None
 
-    def _calc_grid_crys_points(self,convention="mic"):
-        if self.r is None:
+    def _calc_grid_crys_points(self):
+        if self._s is None:
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
-            if convention == 'mic' or convention == 'mic_scaled':
-                ax = []
-                for i in range(3):
-                    # use fftfreq function so we don't have to worry about odd or even number of points
-                    dd=1
-                    if convention == 'mic_scaled':
-                        dd=1/self.nr[i]
-                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
-                    work = np.zeros(self.nr[i])
-                S[:, :, :, 0], S[:, :, :, 1], S[
-                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            else:
-                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
-                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
-                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
-
-                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
+            s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
+            s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
+            s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
+            S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
             self._s = Coord(S, cell=self, basis='Crystal')
 
     def _calc_grid_cart_points(self):
+        if self._r is None:
+            if self._s is None:
+                self._calc_grid_crys_points()
+            self._r = self._s.to_cart()
+
+    @property
+    def r(self):
+        if self._r is None:
+            self._calc_grid_cart_points()
+        return self._r
+
+    @property
+    def s(self):
         if self._s is None:
             self._calc_grid_crys_points()
-        self._r = self._s.to_cart()
+        return self._s
 
     def get_reciprocal(self,scale=[1.,1.,1.],convention='physics'):
         """
@@ -208,6 +164,15 @@ class DirectGrid(BaseGrid,DirectCell):
 
 
 class ReciprocalGrid(BaseGrid, ReciprocalCell):
+    """
+        Attributes:
+        ----------
+        All of BaseGrid and DirectCell
+
+        g : coordinates of each point in the reciprocal cell
+
+        gg : square of each g vector
+    """
     
     def __init__(self, lattice, nr, units=None, **kwargs):
         """
@@ -224,31 +189,40 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
         #lattice /= LEN_CONV[units]["Bohr"]
         super().__init__(lattice=lattice, nr=nr, origin=np.array([0.,0.,0.]), units=units, **kwargs)
         self._g = None
-        self._s = None
         self._gg = None
 
-    def _calc_grid_crys_points(self,convention="mic"):
-        if self.r is None:
+    def _calc_grid_points(self):
+        if self._g is None:
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
-            if convention == 'mic' or convention == 'mic_scaled':
-                ax = []
-                for i in range(3):
-                    # use fftfreq function so we don't have to worry about odd or even number of points
-                    dd=1
-                    if convention == 'mic_scaled':
-                        dd=1/self.nr[i]
-                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
-                    work = np.zeros(self.nr[i])
-                S[:, :, :, 0], S[:, :, :, 1], S[
-                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            else:
-                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
-                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
-                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
 
-                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
-            self._s = Coord(S, cell=self, basis='Crystal')
+            convention = 'mic'
+            ax = []
+            for i in range(3):
+                # use fftfreq function so we don't have to worry about odd or even number of points
+                dd=1
+                if convention == 'mic_scaled':
+                    dd=1/self.nr[i]
+                ax.append(np.fft.fftfreq(self.nr[i],d=dd))
+                #work = np.zeros(self.nr[i])
+            S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(ax[0],ax[1],ax[2],indexing='ij')
+
+            #self._s = Coord(S, cell=self, basis='Crystal')
+            self._g = S
+
+    @property
+    def g(self):
+        if self._g is None:
+            self._calc_grid_points()
+        return self._g
+
+    @property
+    def gg(self):
+        if self._gg is None:
+            if self._g is None:
+                self._calc_grid_points()
+            self._gg = np.einsum('ijkl,ijkl->ijk',self._g,self._g)
+        return self._gg
 
     def get_direct(self,scale=[1.,1.,1.],convention='physics'):
         """

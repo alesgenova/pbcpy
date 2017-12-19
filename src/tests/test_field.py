@@ -33,12 +33,12 @@ class TestField(unittest.TestCase):
         self.assertAlmostEqual(N,N1)
 
         # interpolate up
-        field1 = field.get_3dinterpolation(nr*1.5)
+        field1 = field.get_3dinterpolation(np.array(nr*1.5,dtype=int))
         N1 = field1.integral()
         self.assertAlmostEqual(N,N1)
 
         # interpolate down
-        field2 = field.get_3dinterpolation(nr/2)
+        field2 = field.get_3dinterpolation(nr//2)
         N1 = field2.integral()
         self.assertAlmostEqual(N,N1)
 

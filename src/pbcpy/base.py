@@ -32,6 +32,7 @@ class BaseCell(object):
         #self.bg = np.linalg.inv(at)
         self._origin = np.asarray(origin)
         if units is not None:
+            print("WARN")
             warnings.warn(units_warning, DeprecationWarning)
         self._units = None
         self._volume = np.dot(lattice[:, 0], np.cross(lattice[:, 1], lattice[:, 2]))
