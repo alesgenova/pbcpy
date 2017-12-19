@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from scipy import ndimage
 from .grid import DirectGrid, ReciprocalGrid
@@ -56,7 +57,8 @@ class BaseScalarField(np.ndarray):
 
     def integral(self):
         ''' Returns the integral of self '''
-        return np.einsum('ijk->',self)*self.grid.dV
+        #return np.einsum('ijk->',self)*self.grid.dV
+        return float(np.sum(self))*self.grid.dV
 
 
 class DirectScalarField(BaseScalarField):
@@ -145,27 +147,44 @@ class DirectScalarField(BaseScalarField):
         new_grid = DirectGrid(new_lattice, nr_new, units=self.grid.units)
         return DirectScalarField(new_grid, self.memo, griddata_3d=new_values)
 
-    def get_plotcut(self, x0, r0, r1=None, r2=None, nr=10):
+    def get_cut(self, r0, r1=None, r2=None, origin=None, center=None, nr=10):
         """
         general routine to get the arbitrary cuts of a Grid_Function_Base object in 1,2,
         or 3 dimensions. spline interpolation will be used.
-            x0 = origin of the cut
             r0 = first vector (always required)
             r1 = second vector (required for 2D and 3D cuts)
             r2 = third vector (required for 3D cuts)
+            origin = origin of the cut (don't specify center)
+            center = center of the cut (don't specify origin)
             nr[i] = number points to discretize each direction ; i = 0,1,2
-        x0, r0, r1, r2 are all in crystal coordinates
+        r0, r1, r2, origin, center are instances of Coord
         """
 
         span = 1
+        
+        do_center = False
+        if origin is None and center is None:
+            raise AttributeError("Specify either origin or center")
+        elif origin is not None and center is not None:
+            warnings.warn("Specified both origin and center, center will be ignored", DeprecationWarning)
+        elif center is not None:
+            do_center = True
 
-        x0 = x0.to_crys()
+        if do_center:
+            x0 = center.to_crys()
+        else:    
+            x0 = x0.to_crys()
+
         r0 = r0.to_crys()
+        if do_center: x0 = x0 - 0.5*r0
+
         if r1 is not None:
             r1 = r1.to_crys()
+            if do_center: x0 = x0 - 0.5*r1
             span += 1
             if r2 is not None:
                 r2 = r2.to_crys()
+                if do_center: x0 = x0 - 0.5*r2
                 span += 1
         nrx = np.ones(3, dtype=int)
         if isinstance(nr, (int, float)):
@@ -227,7 +246,7 @@ class DirectScalarField(BaseScalarField):
         at[:,1] = v1
         at[:,2] = v2
 
-        cut_grid = Grid(lattice=at, nr=nrx, origin=origin, units=x0.cell.units)
+        cut_grid = DirectGrid(lattice=at, nr=nrx, origin=origin, units=x0.cell.units)
 
         if span == 1:
             values = values.reshape((a))

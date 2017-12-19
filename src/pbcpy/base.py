@@ -80,6 +80,10 @@ class BaseCell(object):
         return self._lattice
 
     @property
+    def origin(self):
+        return self._origin
+
+    @property
     def units(self):
         #warnings.warn(units_warning, DeprecationWarning)
         return self._units

@@ -44,14 +44,15 @@ class XSF(object):
     def _write_cell(self, fileout, cell):
         mywrite(fileout, "PRIMVEC", True)
         for ilat in range(3):
-            latt = cell.at[:, ilat] * LEN_CONV[cell.units][self.xsf_units]
+            latt = cell.lattice[:, ilat] * LEN_CONV["Bohr"][self.xsf_units]
             mywrite(fileout, latt, True)
 
     def _write_coord(self, fileout, ions):
         mywrite(fileout, "PRIMCOORD", True)
         mywrite(fileout, (len(ions), 1), True)
         for iat, atom in enumerate(ions):
-            mywrite(fileout, (atom.label, atom.pos.conv(self.xsf_units)), True)
+            #mywrite(fileout, (atom.label, atom.pos.conv(self.xsf_units)), True)
+            mywrite(fileout, (atom.label, atom.pos*LEN_CONV["Bohr"][self.xsf_units]), True)
 
     def _write_datagrid(self, fileout, plot):
         ndim = plot.span # 2D or 3D grid?
@@ -73,7 +74,7 @@ class XSF(object):
                     0] + 1, plot.grid.nr[1] + 1), True)
         mywrite(fileout, origin, True) # TODO, there might be an actual origin if we're dealing with a custom cut of the grid
         for ilat in range(ndim):
-            latt = plot.grid.at[:, ilat] * LEN_CONV["Bohr"][self.xsf_units]
+            latt = plot.grid.lattice[:, ilat] * LEN_CONV["Bohr"][self.xsf_units]
             mywrite(fileout, latt, True)
 
         nlines = nnr // val_per_line

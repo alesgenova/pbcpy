@@ -250,35 +250,3 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
         direct_lat = np.einsum('ij,j->ij',at,1./scale)
         
         return DirectGrid(lattice=direct_lat,nr=self.nr,units=self.units)
-
-
-#class Grid_Space(object):
-#
-#    '''
-#    Object representing a grid
-#    (Cell (lattice) plus discretization)
-#    together with its reciprocal grid
-#
-#    Attributes
-#    ----------
-#    grid : Grid
-#        grid on direct space
-#
-#    reciprocal_grid : Grid
-#        grid on reciprocal space#
-#
-#    nr : array of numbers used for discretization
-#
-#    nnr : total number of subcells
-#
-#    '''
-#
-#    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic', conv_type='physics'):
-#
-#        self.grid = Grid(at, nr, origin=origin, units=units, convention=convention)
-#        self.nr = self.grid.nr
-#        self.nnr = self.grid.nnr
-#        self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention, conv_type=conv_type, scale=self.nr)
-#
-#    def clone(self):
-#        return Grid_Space(self.grid.at,self.nr,origin=self.origin,units=self.units,reciprocal_convention=self.reciprocal_convention,conv_type=self.conv_type)
