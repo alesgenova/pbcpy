@@ -8,7 +8,7 @@ class Atom(object):
         self.Z = Z
         self.label = label
         self.Zval = Zval
-        self.pos = Coord(pos, cell, ctype='Cartesian')
+        self.pos = Coord(pos, cell, basis='Cartesian')
 
         if Z is None:
             self.Z = z2lab.index(label)

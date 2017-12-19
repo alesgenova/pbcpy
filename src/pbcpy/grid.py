@@ -1,8 +1,9 @@
 import numpy as np
 from scipy import ndimage
-from .base import Cell, Coord
+from .base import BaseCell, DirectCell, ReciprocalCell, Coord
+from .constants import LEN_CONV
 
-class Grid(Cell):
+class BaseGrid(BaseCell):
 
     '''
     Object representing a grid (Cell (lattice) plus discretization)
@@ -12,80 +13,23 @@ class Grid(Cell):
     ----------
     nr : array of numbers used for discretization
 
-    nnr : total number of subcells
+    nnr : total number of grid points
 
-    dV : volume of a subcell
+    dV : volume of a grid point
 
-    r : vectors in cartesian coordinates identifying the subcells
-
-    s : vectors in crystal coordinates identifying the subcells
-
-    Note:
-    
-    It is possible to choose between 3 different conventions for coordinates:
-    - mic : 'mic'
-        MIC convention.
-    - mic_scaled : 'mic_scaled'
-        MIC convention. Each vector i is scaled by multiplying it for nr[i]
-    - normal (any other string would stick with this choice).
-        NO MIC conversion.
+    Node:
+    Virtual class, DirectGrid and ReciprocalGrid should be used in actual applications
 
     '''
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic'):
-        super().__init__(at, origin, units)
-        self.nr = np.asarray(nr)
-        self.nnr = nr[0] * nr[1] * nr[2]
-        self.dV = self.omega / self.nnr
-        self.r = None
-        self.s = None
-        self._calc_gridpoints(convention)
-
-    def _calc_gridpoints(self,convention):
-        if self.r is None:
-            S = np.ndarray(shape=(self.nr[0], self.nr[
-                           1], self.nr[2], 3), dtype=float)
-            if convention == 'mic' or convention == 'mic_scaled':
-                ax = []
-                for i in range(3):
-                    # use fftfreq function so we don't have to worry about odd or even number of points
-                    dd=1
-                    if convention == 'mic_scaled':
-                        dd=1/self.nr[i]
-                    ax.append(np.fft.fftfreq(self.nr[i],d=dd))
-                    work = np.zeros(self.nr[i])
-                S[:, :, :, 0], S[:, :, :, 1], S[
-                    :, :, :, 2] = np.meshgrid(ax[0], ax[1], ax[2], indexing='ij')
-            else:
-                s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
-                s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
-                s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
-
-                S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
-            self.s = Coord(S, cell=self, ctype='Crystal')
-            self.r = self.s.to_cart()
-
-    def reciprocal_grid(self, reciprocal_convention='mic', conv_type='physics', scale=[1.,1.,1.]):
-        """
-            Returns a new Grid object (the reciprocal grid)
-            The Cell is scaled properly to include
-            the scaled (*self.nr) reciprocal grid points
-            -----------------------------
-            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
-            physics convention defines the reciprocal lattice to be
-            exp^{i G \cdot R} = 1
-            Numpy uses the "crystallographer's" definition ('crystallograph')
-            which comes from defining the reciprocal lattice to be
-            e^{2\pi i G \cdot R} =1
-            In this case bg^T = at^{-1}
-            We can use the 'physics' one with conv_type='physics' (*2pi)
-            and the right scale (*self.nr)
-            -----------------------------
-            Note2: We have to use 'Bohr' units to avoid changing hbar value
-        """
-        rec_cell = self.reciprocal_cell(scale=scale,convention=conv_type)
-        rec_grid = Grid(rec_cell.at,self.nr,units=self.units,convention=reciprocal_convention)
-        return rec_grid
+    def __init__(self, lattice, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='mic', **kwargs):
+        #print("BaseGrid __init__")
+        super().__init__(lattice=lattice, origin=origin, units=units, **kwargs)
+        self._nr = np.asarray(nr)
+        self._nnr = nr[0] * nr[1] * nr[2]
+        self._dV = self._volume / self._nnr
+        #self._r = None # initialize them on request
+        #self._s = None # initialize them on request
 
     def _calc_mask(self, ref_points):
 
@@ -103,81 +47,206 @@ class Grid(Cell):
                             mask[i, j, k] = 0.
         return mask
 
-    def crystal_coord_array(self,array):
-        '''Returns a Coord in crystal coordinates'''
-        if isinstance(array, (Coord)):
-            #TODO check units
-            return array.to_crys()
-        else:
-            return Coord(array, cell=self, ctype='Crystal', units=self.units)
+    @property
+    def nr(self):
+        return self._nr
 
-    def cartesian_coord_array(self,array):
-        '''Returns a Coord in cartesian coordinates'''
-        if isinstance(array, (Coord)):
-            #TODO check units
-            return array.to_cart()
-        else:
-            return Coord(array, cell=self, ctype='Cartesian', units=self.units)
+    @property
+    def nnr(self):
+        return self._nnr
 
-    def square_dist_values(self,center_array=[0.,0.,0.]):
-        '''Returns a ndarray with
-        square distance from center_array of
-        grid points in cartesian coordinates
-        '''
-        # assuming ctype=crystal if center_array is not a Coord object
-        if isinstance(center_array, (Coord)):
-            center = center_array
-        else:
-            center = Coord(center_array, cell=self, ctype='Crystal', units=self.units)
-        center_cart = center.to_cart()
-        val = np.einsum('ijkl,ijkl->ijk',self.r-center_cart,self.r-center_cart)
-        return val
+    @property
+    def dV(self):
+        return self._dV
 
-    def dist_values(self,center_array=[0.,0.,0.]):
-        '''Returns a ndarray with
-        the distance from center_array of
-        grid points in cartesian coordinates
-        '''
-        return np.sqrt(self.square_dist_values(center_array))
+    # I don't see the need for these functions, so I'm gonna comment them out
+    # The same can be achieved as: coord = Coord(lattice=array, cell=grid, basis="S"), instead of coord = grid.cristal_coord_array(array)
+    #def crystal_coord_array(self,array):
+    #    '''Returns a Coord in crystal coordinates'''
+    #    if isinstance(array, (Coord)):
+    #        #TODO check units
+    #        return array.to_crys()
+    #    else:
+    #        return Coord(array, cell=self, ctype='Crystal', units=self.units)
 
-    def gaussianValues(self,alpha=0.1,center_array=[0.,0.,0.]):
-        '''Returns a ndarray with
-        the values of the gaussian
-        (1/(alpha*sqrt(2pi)))*exp(-square_dist_values(center_array)/(2.0*alpha**2))
-        centered on center_array
-        '''
-        if isinstance(alpha, (int,float,complex)):
-            return (1.0/(alpha*np.sqrt(2.0*np.pi)))*np.exp(-self.square_dist_values(center_array)/(2.0*alpha**2))
-        else:
-            return Exception
+    #def cartesian_coord_array(self,array):
+    #    '''Returns a Coord in cartesian coordinates'''
+    #    if isinstance(array, (Coord)):
+    #        #TODO check units
+    #        return array.to_cart()
+    #    else:
+    #        return Coord(array, cell=self, ctype='Cartesian', units=self.units)
 
-class Grid_Space(object):
 
-    '''
-    Object representing a grid
-    (Cell (lattice) plus discretization)
-    together with its reciprocal grid
+class DirectGrid(BaseGrid,DirectCell):
+    """
+        Attributes:
+        ----------
+        All of BaseGrid and DirectCell
 
-    Attributes
-    ----------
-    grid : Grid
-        grid on direct space
+        r : cartesian coordinates of each grid point
 
-    reciprocal_grid : Grid
-        grid on reciprocal space
+        s : crystal coordinates of each grid point
+    """
+    
+    def __init__(self, lattice, nr, origin=np.array([0.,0.,0.]), units=None, **kwargs):
+        """
+        Parameters
+        ----------
+        lattice : array_like[3,3]
+            matrix containing the direct lattice vectors (as its colums)
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+            length units of the lattice vectors.
+        """
+        # internally always convert the units to Bohr
+        #print("DirectGrid __init__")
+        # lattice is already scaled inside the super()__init__, no need to do it here
+        #lattice *= LEN_CONV[units]["Bohr"]
+        super().__init__(lattice=lattice, nr=nr, origin=origin, units=units, **kwargs)
+        self._r = None
+        self._s = None
 
-    nr : array of numbers used for discretization
+    def _calc_grid_crys_points(self):
+        if self._s is None:
+            S = np.ndarray(shape=(self.nr[0], self.nr[
+                           1], self.nr[2], 3), dtype=float)
+            s0 = np.linspace(0, 1, self.nr[0], endpoint=False)
+            s1 = np.linspace(0, 1, self.nr[1], endpoint=False)
+            s2 = np.linspace(0, 1, self.nr[2], endpoint=False)
+            S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(s0,s1,s2,indexing='ij')
+            self._s = Coord(S, cell=self, basis='Crystal')
 
-    nnr : total number of subcells
+    def _calc_grid_cart_points(self):
+        if self._r is None:
+            if self._s is None:
+                self._calc_grid_crys_points()
+            self._r = self._s.to_cart()
 
-    '''
+    @property
+    def r(self):
+        if self._r is None:
+            self._calc_grid_cart_points()
+        return self._r
 
-    def __init__(self, at, nr, origin=np.array([0.,0.,0.]), units='Bohr', convention='', reciprocal_convention='mic', conv_type='physics'):
+    @property
+    def s(self):
+        if self._s is None:
+            self._calc_grid_crys_points()
+        return self._s
 
-        self.grid = Grid(at, nr, origin=origin, units=units, convention=convention)
-        self.nr = self.grid.nr
-        self.nnr = self.grid.nnr
-        self.reciprocal_grid = self.grid.reciprocal_grid(reciprocal_convention=reciprocal_convention, conv_type=conv_type, scale=self.nr)
+    def get_reciprocal(self,scale=[1.,1.,1.],convention='physics'):
+        """
+            Returns a new ReciprocalCell, the reciprocal cell of self
+            The ReciprocalCell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        # TODO define in constants module hbar value for all units allowed
+        scale = np.array(scale)
+        fac = 1.0
+        if convention == 'physics' or convention == 'p':
+            fac = 2*np.pi
+        bg = fac*np.linalg.inv(self.lattice)
+        bg = bg.T
+        #bg = bg/LEN_CONV["Bohr"][self.units]
+        reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
 
-    def clone(self):
-        return Grid_Space(self.grid.at,self.nr,origin=self.origin,units=self.units,reciprocal_convention=self.reciprocal_convention,conv_type=self.conv_type)
+        return ReciprocalGrid(lattice=reciprocal_lat,nr=self.nr,units=self.units)
+
+
+class ReciprocalGrid(BaseGrid, ReciprocalCell):
+    """
+        Attributes:
+        ----------
+        All of BaseGrid and DirectCell
+
+        g : coordinates of each point in the reciprocal cell
+
+        gg : square of each g vector
+    """
+    
+    def __init__(self, lattice, nr, units=None, **kwargs):
+        """
+        Parameters
+        ----------
+        lattice : array_like[3,3]
+            matrix containing the direct lattice vectors (as its colums)
+        units : {'Bohr', 'Angstrom', 'nm', 'm'}, optional
+            length units of the lattice vectors.
+        """
+        # internally always convert the units to Bohr
+        #print("ReciprocalGrid __init__")
+        # lattice is already scaled inside the super()__init__, no need to do it here
+        #lattice /= LEN_CONV[units]["Bohr"]
+        super().__init__(lattice=lattice, nr=nr, origin=np.array([0.,0.,0.]), units=units, **kwargs)
+        self._g = None
+        self._gg = None
+
+    def _calc_grid_points(self):
+        if self._g is None:
+            S = np.ndarray(shape=(self.nr[0], self.nr[
+                           1], self.nr[2], 3), dtype=float)
+
+            convention = 'mic'
+            ax = []
+            for i in range(3):
+                # use fftfreq function so we don't have to worry about odd or even number of points
+                dd=1
+                if convention == 'mic_scaled':
+                    dd=1/self.nr[i]
+                ax.append(np.fft.fftfreq(self.nr[i],d=dd))
+                #work = np.zeros(self.nr[i])
+            S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(ax[0],ax[1],ax[2],indexing='ij')
+
+            #self._s = Coord(S, cell=self, basis='Crystal')
+            self._g = S
+
+    @property
+    def g(self):
+        if self._g is None:
+            self._calc_grid_points()
+        return self._g
+
+    @property
+    def gg(self):
+        if self._gg is None:
+            if self._g is None:
+                self._calc_grid_points()
+            self._gg = np.einsum('ijkl,ijkl->ijk',self._g,self._g)
+        return self._gg
+
+    def get_direct(self,scale=[1.,1.,1.],convention='physics'):
+        """
+            Returns a new DirectCell, the direct cell of self
+            The DirectCell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        # TODO define in constants module hbar value for all units allowed
+        scale = np.array(scale)
+        fac = 1.0
+        if convention == 'physics' or convention == 'p':
+            fac = 1./(2*np.pi)
+        at = np.linalg.inv(self.lattice.T*fac)
+        #at = at*LEN_CONV["Bohr"][self.units]
+        direct_lat = np.einsum('ij,j->ij',at,1./scale)
+        
+        return DirectGrid(lattice=direct_lat,nr=self.nr,units=self.units)
