@@ -6,7 +6,7 @@ from .constants import LEN_CONV
 
 class BaseField(np.ndarray):
     '''
-    Extended numpy array representing a scalar field on a grid
+    Extended numpy array representing a field on a grid
     (Cell (lattice) plus discretization)
 
     Attributes
@@ -67,7 +67,7 @@ class BaseField(np.ndarray):
         #return float(np.sum(self))*self.grid.dV
 
 
-class DirectField(BaseScalarField):
+class DirectField(BaseField):
     spl_order = 3
 
     def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
@@ -97,13 +97,14 @@ class DirectField(BaseScalarField):
             raise Exception("gradient is only implemented for scalar fields")
         reciprocal = self.fft()
         imag = (0 + 1j)
-        grad_g = np.zeros(*self.grid.nr, self.rank, dtype=real)
+        nr = *self.grid.nr, 3
+        grad_g = np.zeros(nr, dtype=complex)
         # Quantum Espresso way!
-        for i in range(self.rank):
+        for i in range(3):
             # FFT(\grad A) = i \vec(G) * FFT(A)
-            grad_g[...,i] = self.grid.g[...,i] * (reciprocal*imag)
-        grad_g = ReciprocalScalarField(grid=self.grid.get_reciprocal(), rank=self.rank, griddata_3d=grad_g)
-        return grad_g.ifft()
+            grad_g[...,i] = reciprocal.grid.g[...,i] * (reciprocal[...,0]*imag)
+        grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
+        return grad_g.ifft(check_real=True)
 
     def fft(self):
         ''' Implements the Discrete Fourier Transform
@@ -112,7 +113,11 @@ class DirectField(BaseScalarField):
         Returns a new Grid_Function_Reciprocal
         '''
         reciprocal_grid = self.grid.get_reciprocal()
-        return ReciprocalScalarField(grid=reciprocal_grid, memo=self.memo, griddata_3d=np.fft.fftn(self)*self.grid.dV)
+        nr = *self.grid.nr, self.rank
+        griddata_3d = np.zeros(nr, dtype=complex)
+        for i in range(self.rank):
+            griddata_3d[...,i] = np.fft.fftn(self[...,i])*self.grid.dV
+        return ReciprocalField(grid=reciprocal_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
 
     def get_value_at_points(self, points):
         """points is in crystal coordinates"""
@@ -151,6 +156,9 @@ class DirectField(BaseScalarField):
         Interpolates the values of the function on a cell with a different number
         of points, and returns a new Grid_Function_Base object.
         """
+        if self.rank > 1:
+            raise Exception("get_3dinterpolation is only implemented for scalar fields")
+
         if self.spl_coeffs is None:
             self._calc_spline()
         x = np.linspace(0, 1, nr_new[0], endpoint=False) * \
@@ -164,7 +172,7 @@ class DirectField(BaseScalarField):
             self.spl_coeffs, [X, Y, Z], mode='wrap')
         new_lattice = self.grid.lattice #*LEN_CONV["Bohr"][self.grid.units]
         new_grid = DirectGrid(new_lattice, nr_new, units=self.grid.units)
-        return DirectScalarField(new_grid, self.memo, griddata_3d=new_values)
+        return DirectField(new_grid, self.memo, griddata_3d=new_values)
 
     def get_cut(self, r0, r1=None, r2=None, origin=None, center=None, nr=10):
         """
@@ -178,6 +186,9 @@ class DirectField(BaseScalarField):
             nr[i] = number points to discretize each direction ; i = 0,1,2
         r0, r1, r2, origin, center are instances of Coord
         """
+
+        if self.rank > 1:
+            raise Exception("get_cut is only implemented for scalar fields")
 
         span = 1
         
@@ -274,14 +285,14 @@ class DirectField(BaseScalarField):
         elif span == 3:
             values = values.reshape((a, b, c))
 
-        return DirectScalarField(grid=cut_grid, memo=self.memo, griddata_3d=values)
+        return DirectField(grid=cut_grid, memo=self.memo, griddata_3d=values)
 
-class ReciprocalScalarField(BaseScalarField):
+class ReciprocalField(BaseField):
 
-    def __new__(cls, grid, memo="", griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
         if not isinstance(grid, ReciprocalGrid):
             raise TypeError("the grid argument is not an instance of ReciprocalGrid")
-        obj = super().__new__(cls, grid, memo="", griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
+        obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
         obj.spl_coeffs = None
         return obj
 
@@ -299,8 +310,11 @@ class ReciprocalScalarField(BaseScalarField):
         Returns a new Grid_Function
         '''
         direct_grid = self.grid.get_direct()
-        griddata_3d = np.fft.ifftn(self)/direct_grid.dV
+        nr = *self.grid.nr, self.rank
+        griddata_3d = np.zeros(nr, dtype=complex)
+        for i in range(self.rank):
+            griddata_3d[...,i] = np.fft.ifftn(self[...,i])/direct_grid.dV
         if check_real:
-            if np.isclose(np.imag(griddata_3d),0.,atol=1.e-20).all():
+            if np.isclose(np.imag(griddata_3d),0.,atol=1.e-16).all():
                 griddata_3d = np.real(griddata_3d)
-        return DirectScalarField(grid=direct_grid, memo=self.memo, griddata_3d=griddata_3d)
+        return DirectField(grid=direct_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
