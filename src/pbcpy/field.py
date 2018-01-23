@@ -38,7 +38,8 @@ class BaseField(np.ndarray):
         elif griddata_C is not None:
             input_values = np.reshape(griddata_C, nr, order='C')
         elif griddata_3d is not None:
-            input_values = griddata_3d
+            #input_values = griddata_3d
+            input_values = np.reshape(griddata_3d, nr)
 
         obj = np.asarray(input_values).view(cls)
         # add the new attribute to the created instance
@@ -95,16 +96,26 @@ class DirectField(BaseField):
     def gradient(self):
         if self.rank > 1:
             raise Exception("gradient is only implemented for scalar fields")
-        reciprocal = self.fft()
+        reciprocal_self = self.fft()
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
         grad_g = np.zeros(nr, dtype=complex)
         # Quantum Espresso way!
         for i in range(3):
             # FFT(\grad A) = i \vec(G) * FFT(A)
-            grad_g[...,i] = reciprocal.grid.g[...,i] * (reciprocal[...,0]*imag)
+            grad_g[...,i] = reciprocal_self.grid.g[...,i] * (reciprocal_self[...,0]*imag)
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
         return grad_g.ifft(check_real=True)
+
+    def sigma(self):
+        """
+        \sigma(r) = |\grad rho(r)|^2
+        """
+        if self.rank > 1:
+            raise Exception("sigma is only implemented for scalar fields")
+        gradrho = self.gradient()
+        griddata_3d = np.einsum("ijkl,ijkl->ijk", gradrho, gradrho)
+        return DirectField(self.grid, rank=1, griddata_3d=griddata_3d)
 
     def fft(self):
         ''' Implements the Discrete Fourier Transform
