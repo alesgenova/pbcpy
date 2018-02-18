@@ -1,6 +1,6 @@
 import numpy as np
 from ..grid import DirectGrid
-from ..field import DirectScalarField
+from ..field import DirectField
 from ..system import System
 from ..atom import Atom
 
@@ -87,7 +87,7 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = DirectScalarField(grid=grid, griddata_F=ppgrid)
+            plot = DirectField(grid=grid, griddata_F=ppgrid)
 
             return System(atoms, grid, name=self.title, field=plot)
 

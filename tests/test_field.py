@@ -7,7 +7,7 @@ from tests.env import PBC_SRC
 sys.path.insert(0,PBC_SRC)
 from pbcpy.base import DirectCell, ReciprocalCell, Coord
 from pbcpy.grid import DirectGrid, ReciprocalGrid
-from pbcpy.field import DirectScalarField, ReciprocalScalarField
+from pbcpy.field import DirectField, ReciprocalField
 from pbcpy.constants import LEN_CONV
 
 from tests.common import run_test_orthorombic, run_test_triclinic, make_orthorombic_cell, make_triclinic_cell
@@ -17,7 +17,7 @@ class TestField(unittest.TestCase):
     def test_direct_scalar_field(self):
         print()
         print("*"*50)
-        print("Testing DirectScalarField")
+        print("Testing DirectField")
         # Test a constant scalar field
         N = 8
         A, B, C = 5, 10, 6
@@ -25,10 +25,10 @@ class TestField(unittest.TestCase):
         grid = make_orthorombic_cell(A=A,B=B,C=C,CellClass=DirectGrid, nr=nr, units="Angstrom")
         d = N/grid.volume
         initial_vals = np.ones(nr)*d
-        field = DirectScalarField(grid=grid, griddata_3d=initial_vals)
+        field = DirectField(grid=grid, griddata_3d=initial_vals)
         #print(initial_vals[0,0,:])
         #print(field[0,0,:])
-        self.assertTrue(type(field) is DirectScalarField)
+        self.assertTrue(type(field) is DirectField)
         N1 = field.integral()
         self.assertAlmostEqual(N,N1)
 
@@ -44,7 +44,7 @@ class TestField(unittest.TestCase):
 
         # fft
         reciprocal_field = field.fft()
-        self.assertAlmostEqual(N, reciprocal_field[0,0,0])
+        self.assertAlmostEqual(N, reciprocal_field[0,0,0,0])
 
         # ifft
         field1 = reciprocal_field.ifft(check_real=True)

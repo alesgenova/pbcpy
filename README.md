@@ -1,4 +1,8 @@
-# `pbcpy`
+# `PbcPy`
+[![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master)
+[![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master)
+ [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 `pbcpy` is a Python3 package providing some useful abstractions to deal with
 molecules and materials under periodic boundary conditions (PBC).
 
@@ -17,7 +21,7 @@ Finally, `pbcpy` provides IO support to some common file formats:
 - `DirectCell` and `Coord` classes which define a unit cell under PBC in real space, and a cartesian/crystal coordinate respectively;
 - `ReciprocalCell` class which defines a cell in reciprocal space;
 - `DirectGrid` and `ReciprocalGrid` classes, which are derived from `DirectCell` and `ReciprocalCell` and provide space discretization;
-- `DirectScalarField` and `ReciprocalScalarField`, classes to represent a scalar field (such as an electron density or a potential) associated to either a `DirectGrid` or a `ReciprocalGrid`;
+- `DirectField` and `ReciprocalField`, classes to represent a scalar (such as an electron density or a potential) and/or vector fields associated to either a `DirectGrid` or a `ReciprocalGrid`;
 
 ## Installation
 
@@ -230,30 +234,33 @@ array([[[ 0.    ,  0.0001,  0.0004, ...,  0.0009,  0.0004,  0.0001],
 (100, 100, 100)                                          
 ```
 
-## `DirectScalarField` and `ReciprocalScalarField` class
-The `DirectScalarField` and `ReciprocalScalarField` classes represent a scalar field on a `DirectGrid` and `ReciprocalGrid` respectively. These classes are extensions of the `numpy.ndarray`.
+## `DirectField` and `ReciprocalField` class
+The `DirectField` and `ReciprocalField` classes represent a scalar field on a `DirectGrid` and `ReciprocalGrid` respectively. These classes are extensions of the `numpy.ndarray`.
 
 Operations such as interpolations, fft and invfft, and taking arbitrary 1D/2D/3D cuts are made very easy.
 
-A `DirectScalarField` can be generated directly from Quantum Espresso postprocessing `.pp` files (see below).
+A `DirectField` can be generated directly from Quantum Espresso postprocessing `.pp` files (see below).
 
 ```python
-# A DirectScalarField example
->>> from pbcpy.field import DirectScalarField
+# A DirectField example
+>>> from pbcpy.field import DirectField
 >>> griddata = np.random.random(size=grid1.nr)
->>> field1 = DirectScalarField(grid=grid1, griddata_3d=griddata)
+>>> field1 = DirectField(grid=grid1, griddata_3d=griddata)
 
-# When importing a Quantum Espresso .pp files a DirectScalarField object is created
+# When importing a Quantum Espresso .pp files a DirectField object is created
 >>> from pbcpy.formats.qepp import PP
 >>> water_dimer = PP(filepp="/path/to/density.pp").read()
 >>> rho = water_dimer.field
 >>> type(rho)
-pbcpy.field.DirectScalarField
+pbcpy.field.DirectField
 ```
 
-### `DirectScalarField` attributes
+### `DirectField` attributes
 - `grid` : Represent the grid associated to the field (it's a `DirectGrid` or `ReciprocalGrid` object)
 - `span` : The number of dimensions of the grid for which the number of points is larger than 1
+- `rank` : The number of dimensions of the quantity at each grid point
+  - `1` : scalar field (e.g. the rank of rho is `1`)
+  - `>1` : vector field (e.g. the rank of the gradient of rho is `3`)
 
 ```python
 >>> type(rho.grid)
@@ -261,15 +268,19 @@ pbcpy.grid.DirectGrid
 
 >>> rho.span
 3
+
+>>> rho.rank
+1
+# the density is a scalar field
 ```
 
-### `DirectScalarField` methods
+### `DirectField` methods
 
 - Any method inherited from `numpy.array`.
 - `integral` : returns the integral of the field.
-- `get_3dinterpolation` : Interpolates the data to a different grid (returns a new `DirectScalarField` object). 3rd order spline interpolation.
+- `get_3dinterpolation` : Interpolates the data to a different grid (returns a new `DirectField` object). 3rd order spline interpolation.
 - `get_cut(r0, [r1], [r2], [origin], [center], [nr])` : Get 1D/2D/3D cuts of the scalar field, by providing arbitraty vectors and an origin/center.
-- `fft` : Calculates the Fouries transform of self, and returns an instance of `ReciprocalScalarField`, which contains the appropriate `ReciprocalGrid`
+- `fft` : Calculates the Fouries transform of self, and returns an instance of `ReciprocalField`, which contains the appropriate `ReciprocalGrid`
 
 ```python
 # Integrate the field over the whole grid
@@ -299,7 +310,7 @@ pbcpy.grid.DirectGrid
 
 >>> rho_cut = rho.get_cut(r0=o_h1_vec*4, r1=o_h2_vec*4, center=o_pos, nr=[100,100])
 
-# plot_cut is itself a DirectScalarField instance, and it can be either exported to an xsf file (see next session)
+# plot_cut is itself a DirectField instance, and it can be either exported to an xsf file (see next session)
 # or its values can be analized/manipulated in place.
 >>> rho_cut.shape
 (100,100)
@@ -315,22 +326,22 @@ array([[ 1.57225214, -6.68207161, -0.43149218],
 >>> plot_cut.values.shape
 (200, 200)
 
-# Fourier transform of the DirectScalarField
+# Fourier transform of the DirectField
 >>> rho_g = rho.fft()
 >>> type(rho_g)
-pbcpy.field.ReciprocalScalarField
+pbcpy.field.ReciprocalField
 ```
 
-### `DirectScalarField` methods
+### `DirectField` methods
 
-- `ifft` : Calculates the inverse Fouries transform of self, and returns an instance of `DirectScalarField`, which contains the appropriate `DirectGrid`
+- `ifft` : Calculates the inverse Fouries transform of self, and returns an instance of `DirectField`, which contains the appropriate `DirectGrid`
 
 ```python
 # inv fft:
 # recall that rho_g = fft(rho)
 >>> rho1 = rho_g.ifft()
 >>> type(rho1)
-pbcpy.field.DirectScalarField
+pbcpy.field.DirectField
 
 >>> rho1.grid == rho.grid
 True
@@ -341,13 +352,13 @@ True
 ```
 
 ## `System` class
-`System` is simply a class containing a `DirectCell` (or `DirectGrid`), a set of atoms `ions`, and a `DirectScalarField`
+`System` is simply a class containing a `DirectCell` (or `DirectGrid`), a set of atoms `ions`, and a `DirectField`
 
 ### `System` attributes
 - `name` : arbitrary name
 - `ions` : collection of atoms and their coordinates
 - `cell` : the unit cell of the system (`DirectCell` or `DirectGrid`)
-- `field` : an optional `DirectScalarField` object.
+- `field` : an optional `DirectField` object.
 
 
 ## `pbcarray` class
@@ -382,7 +393,7 @@ True
 ```python
 >>> XSF(filexsf='/path/to/output.xsf').write(system=water_dimer)
 
-# an optional field parameter can be passed to XSF.write() in order to override the DirectScalarField in system.
+# an optional field parameter can be passed to XSF.write() in order to override the DirectField in system.
 # This is especially useful if one wants to output one system and an arbitrary cut of the grid,
 # such as the one we generated earlier
 >>> XSF(filexsf='/path/to/output.xsf').write(system=water_dimer, field=rho_cut)
