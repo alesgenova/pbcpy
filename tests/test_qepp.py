@@ -20,7 +20,7 @@ class TestQEPP(unittest.TestCase):
         self.assertAlmostEqual(rho_r.integral(),16)
         
         rho_g = rho_r.fft()
-        self.assertAlmostEqual(rho_g[0,0,0],16)
+        self.assertAlmostEqual(rho_g[0,0,0,0],16)
 
         rho_r1 = rho_g.ifft()
         self.assertAlmostEqual(rho_r1.integral(),16)

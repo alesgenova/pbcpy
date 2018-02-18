@@ -4,6 +4,7 @@ from scipy import ndimage
 from .grid import DirectGrid, ReciprocalGrid
 from .constants import LEN_CONV
 
+
 class BaseField(np.ndarray):
     '''
     Extended numpy array representing a field on a grid
@@ -30,7 +31,7 @@ class BaseField(np.ndarray):
         # We first cast to be our class type
 
         nr = *grid.nr, rank
-        
+
         if griddata_F is None and griddata_C is None and griddata_3d is None:
             input_values = np.zeros(nr)
         elif griddata_F is not None:
@@ -38,7 +39,7 @@ class BaseField(np.ndarray):
         elif griddata_C is not None:
             input_values = np.reshape(griddata_C, nr, order='C')
         elif griddata_3d is not None:
-            #input_values = griddata_3d
+            # input_values = griddata_3d
             input_values = np.reshape(griddata_3d, nr)
 
         obj = np.asarray(input_values).view(cls)
@@ -64,7 +65,7 @@ class BaseField(np.ndarray):
 
     def integral(self):
         ''' Returns the integral of self '''
-        return np.einsum('ijk->',self)*self.grid.dV
+        return np.einsum('ijkl->',self)*self.grid.dV
         #return float(np.sum(self))*self.grid.dV
 
 
@@ -88,7 +89,7 @@ class DirectField(BaseField):
         self.spl_coeffs = None
 
     def _calc_spline(self):
-        padded_values = np.pad(self, ((self.spl_order,)), mode='wrap')
+        padded_values = np.pad(self[:,:,:,0], ((self.spl_order,)), mode='wrap')
         self.spl_coeffs = ndimage.spline_filter(
             padded_values, order=self.spl_order)
         return
@@ -202,7 +203,7 @@ class DirectField(BaseField):
             raise Exception("get_cut is only implemented for scalar fields")
 
         span = 1
-        
+
         do_center = False
         if origin is None and center is None:
             raise AttributeError("Specify either origin or center")
@@ -213,7 +214,7 @@ class DirectField(BaseField):
 
         if do_center:
             x0 = center.to_crys()
-        else:    
+        else:
             x0 = x0.to_crys()
 
         r0 = r0.to_crys()
@@ -221,7 +222,8 @@ class DirectField(BaseField):
 
         if r1 is not None:
             r1 = r1.to_crys()
-            if do_center: x0 = x0 - 0.5*r1
+            if do_center:
+                x0 = x0 - 0.5*r1
             span += 1
             if r2 is not None:
                 r2 = r2.to_crys()
@@ -290,13 +292,14 @@ class DirectField(BaseField):
         cut_grid = DirectGrid(lattice=at, nr=nrx, origin=origin, units=x0.cell.units)
 
         if span == 1:
-            values = values.reshape((a))
+            values = values.reshape((a,))
         elif span == 2:
             values = values.reshape((a, b))
         elif span == 3:
             values = values.reshape((a, b, c))
 
         return DirectField(grid=cut_grid, memo=self.memo, griddata_3d=values)
+
 
 class ReciprocalField(BaseField):
 
