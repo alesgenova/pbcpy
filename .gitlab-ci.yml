@@ -1,9 +1,9 @@
 tests:
   script:
-    - apt-get update -qy
-    - apt-get install -y python-dev python-pip
-    - pip install -r requirements.txt
-    - python -m unittest discover -s tests/
-    - pip install coverage
-    - coverage run --source=./src -m unittest discover -s tests/
-    - coverage report -m
+  - apt-get update -qy
+  - apt-get install -y python3-dev python3-pip
+  - pip install -r requirements.txt
+  - python -m unittest discover -s tests/
+  - pip install coverage
+  - coverage run --source=./src -m unittest discover -s tests/
+  - coverage report -m
