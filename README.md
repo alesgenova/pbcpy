@@ -1,4 +1,8 @@
 # `pbcpy`
+[![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master)
+[![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master)
+ [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 `pbcpy` is a Python3 package providing some useful abstractions to deal with
 molecules and materials under periodic boundary conditions (PBC).
 
