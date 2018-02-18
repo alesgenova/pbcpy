@@ -1,0 +1,7 @@
+tests:
+  script:
+    - pip install -r requirements.txt
+    - python -m unittest discover -s tests/
+    - pip install coverage
+    - coverage run --source=./src -m unittest discover -s tests/
+    - coverage report -m
