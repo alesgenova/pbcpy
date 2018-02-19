@@ -1,10 +1,6 @@
 import unittest
 import numpy as np
-import sys
-#sys.path.insert(0,"./")
-from tests.env import PBC_SRC
-sys.path.insert(0,PBC_SRC)
-#print(sys.path)
+
 from pbcpy.base import DirectCell, ReciprocalCell, Coord, pbcarray
 from pbcpy.constants import LEN_CONV
 

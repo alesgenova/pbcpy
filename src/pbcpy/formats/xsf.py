@@ -36,6 +36,8 @@ class XSF(object):
             self._write_coord(fileout, ions)
             self._write_datagrid(fileout, field)
 
+        return 0
+
 
     def _write_header(self, fileout, title):
         mywrite(fileout, ("# ", title))

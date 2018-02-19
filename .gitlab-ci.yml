@@ -1,10 +1,11 @@
 tests:
   image: python:3
   script:
-  #- apt-get update -qy
-  #- apt-get install -y python3-dev python3-pip
-  - pip install -r requirements.txt
-  - python -m unittest discover -s tests/
-  - pip install coverage
-  - coverage run --source=./src -m unittest discover -s tests/
-  - coverage report -m
+  - pip install -r requirements.txt  
+  - pip install pytest pytest-cov
+  - pytest --cov=./src/ ./tests/
+  # Now using pytest to run the tests instead of unittest directly
+  #- pip install coverage
+  #- python -m unittest discover -s tests/
+  #- coverage run --source=./src -m unittest discover -s tests/
+  #- coverage report -m

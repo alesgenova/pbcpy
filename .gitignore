@@ -3,4 +3,5 @@ __pycache__/
 .cache/
 .coverage
 *.egg-info/
+tests/test.xsf
 dist/
