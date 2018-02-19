@@ -1,9 +1,11 @@
 # `PbcPy`
 
-[![PyPI version](https://badge.fury.io/py/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
+[![PyPI version](https://img.shields.io/pypi/v/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
+[![PyPI status](https://img.shields.io/pypi/status/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
 [![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master) &nbsp;
 [![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master) &nbsp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+<!--[![PyPI pyversions](https://img.shields.io/pypi/pyversions/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;-->
 
 `pbcpy` is a Python3 package providing some useful abstractions to deal with
 molecules and materials under periodic boundary conditions (PBC).
