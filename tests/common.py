@@ -26,6 +26,7 @@ def run_test_orthorombic(self, cell_cls, nr=None):
     #print()
     #print(cell.lattice)
     #print(cell1.lattice)
+    self.assertTrue(cell==cell)
     self.assertTrue(cell==cell1)
     self.assertAlmostEqual(cell.volume/qe_volume, 1.)
 
@@ -37,6 +38,10 @@ def run_test_orthorombic(self, cell_cls, nr=None):
     # ReciprocalCell, check if it matches QE
     #print("reciprocal")
     reciprocal = cell.get_reciprocal(convention="p")
+    # can't compare == a reciprocal and a direct cell
+    with self.assertRaises(TypeError):
+        is_same = cell == reciprocal
+
     ref = qe_reciprocal
     act = reciprocal.lattice
     #print(act)

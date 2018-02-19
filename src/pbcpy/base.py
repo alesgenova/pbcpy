@@ -299,13 +299,13 @@ class Coord(np.ndarray):
                 #other = other.conv(self.cell.units).to_ctype(self.ctype)
                 other = other.to_basis(self.basis)
             else:
-                return Exception
+                raise Exception("Two Coord objects can only be added if they are represented in the same cell")
 
         return np.ndarray.__add__(self, other)
 
-    def __multiply__(self,scalar):
+    def __mul__(self,scalar):
         """ Implement the scalar multiplication"""
-        if type(scalar) in [int,float]:
+        if isinstance(scalar, (int,float)):
             return np.multiply(self,scalar)
         else:
             raise TypeError("Coord can only be multiplied by a int or float scalar")

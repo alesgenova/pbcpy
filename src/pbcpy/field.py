@@ -215,7 +215,7 @@ class DirectField(BaseField):
         if do_center:
             x0 = center.to_crys()
         else:
-            x0 = x0.to_crys()
+            x0 = origin.to_crys()
 
         r0 = r0.to_crys()
         if do_center: x0 = x0 - 0.5*r0

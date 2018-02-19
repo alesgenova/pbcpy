@@ -55,6 +55,19 @@ class TestCoord(unittest.TestCase):
         # difference vector and distance without mic
         self.assertTrue(np.isclose(scoord2-scoord1, [0.1,-1.0,2.0]).all())
         self.assertAlmostEqual((scoord2-scoord1).length(), np.sqrt((0.1*9)**2+ (-1.*12)**2+(2.*18)**2)*ang2bohr)
+        # start from a coord, add any lattice vector, calculate the difference (with MIC) from the start
+        # it should be 0
+        lcoord1 = Coord(pos=[1.,-5.,3.], cell=cell1, basis="Crystal")
+        self.assertAlmostEqual(rcoord1.dd_mic(rcoord1+lcoord1), 0.0)
+        # scalar multiply
+        # wrong multiply
+        with self.assertRaises(TypeError):
+            rcoord1*lcoord1
+        #wrong add
+        cell2 = make_orthorombic_cell(9.3,12,18,CellClass=DirectCell,units="Angstrom")
+        rcoord3 = Coord(pos=rpos1, cell=cell2, basis="Cartesian")
+        with self.assertRaises(Exception):
+            rcoord1+rcoord3
 
 
 class TestPbcArray(unittest.TestCase):
