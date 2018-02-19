@@ -3,7 +3,7 @@ tests:
   script:
   - pip install -r requirements.txt  
   - pip install pytest pytest-cov
-  - pytest --cov=./src/ ./tests/
+  - pytest --cov-report term-missing --cov=./src/ ./tests/
   # Now using pytest to run the tests instead of unittest directly
   #- pip install coverage
   #- python -m unittest discover -s tests/

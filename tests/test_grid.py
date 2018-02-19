@@ -14,12 +14,22 @@ class TestCell(unittest.TestCase):
         print("*"*50)
         print("Testing orthorombic DirectGrid")
         # run the same tests we ran on Cell onto Grid
-        run_test_orthorombic(self, DirectGrid, nr=[10,10,10])
+        nr = 100
+        a, b, c = 10.,12.,14.
+        run_test_orthorombic(self, DirectGrid, nr=[nr,nr,nr])
         # check if we can compare equality between Cell and Grid
-        grid = make_orthorombic_cell(10,12,14,nr=[10,10,10],CellClass=DirectGrid)
-        cell = make_orthorombic_cell(10,12,14,CellClass=DirectCell)
+        grid = make_orthorombic_cell(a,b,c,nr=[nr,nr,nr],CellClass=DirectGrid)
+        cell = make_orthorombic_cell(a,b,c,CellClass=DirectCell)
         self.assertEqual(grid,cell)
 
+        # calculate grid points
+        r = grid.r
+        self.assertTrue(np.isclose(r[0,0,0],np.array([0,0,0])).all())
+        #self.assertTrue(np.isclose(r[nr-1,nr-1,nr-1],np.array([a-a/nr,b-b/nr,c-c/nr]),rtol=1.e-3).all())
+        # calculate crystal grid points
+        s = grid.s
+        self.assertTrue(np.isclose(s[0,0,0],np.array([0,0,0])).all())
+        self.assertTrue(np.isclose(s[nr-1,nr-1,nr-1],np.array([1.-1./nr,1.-1./nr,1.-1./nr])).all())
 
     def test_triclinic_cell(self):
         print()
