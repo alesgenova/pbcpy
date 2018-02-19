@@ -5,7 +5,7 @@ import sys
 from tests.env import PBC_SRC
 sys.path.insert(0,PBC_SRC)
 #print(sys.path)
-from pbcpy.base import DirectCell, ReciprocalCell, Coord
+from pbcpy.base import DirectCell, ReciprocalCell, Coord, pbcarray
 from pbcpy.constants import LEN_CONV
 
 from tests.common import run_test_orthorombic, run_test_triclinic, make_orthorombic_cell
@@ -59,6 +59,26 @@ class TestCoord(unittest.TestCase):
         # difference vector and distance without mic
         self.assertTrue(np.isclose(scoord2-scoord1, [0.1,-1.0,2.0]).all())
         self.assertAlmostEqual((scoord2-scoord1).length(), np.sqrt((0.1*9)**2+ (-1.*12)**2+(2.*18)**2)*ang2bohr)
+
+
+class TestPbcArray(unittest.TestCase):
+
+    def test_pbcarray(self):
+        print()
+        print("*"*50)
+        print("Testing PbcArray")
+        dim = 50
+        A = np.random.random((dim,dim))
+        B = pbcarray(A)
+        n = 5
+        for _i in range(n):
+            i = _i - n//2
+            for _j in range(n):
+                j = _j - n//2
+                self.assertTrue(np.isclose(
+                    A,
+                    B[i*dim:i*dim+dim,j*dim:j*dim+dim]
+                ).all())
 
 
 
