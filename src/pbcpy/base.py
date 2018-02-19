@@ -252,8 +252,8 @@ class Coord(np.ndarray):
         """
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
-        if not isinstance(cell, (DirectCell, ReciprocalCell)):
-            raise TypeError("Coord represent coordinates in real space, cell needs to be a DirectCell")
+        if not isinstance(cell, (DirectCell,)):
+            raise TypeError("Coord represent coordinates in real space, cell needs to be a DirectCell", type(cell))
         
         if basis not in Coord.cart_names and basis not in Coord.crys_names:
             raise NameError("Unknown basis name: {}".format(basis))

@@ -1,11 +1,6 @@
 import unittest
 import numpy as np
-import sys
-from tests.env import PBC_SRC
-#sys.path.insert(0,"../")
-sys.path.insert(0,PBC_SRC)
-#from pbcpy.base import DirectCell, ReciprocalCell, Coord
-#from pbcpy.grid import DirectGrid, ReciprocalGrid
+
 from pbcpy.formats.qepp import PP
 from pbcpy.constants import LEN_CONV
 

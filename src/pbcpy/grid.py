@@ -31,22 +31,6 @@ class BaseGrid(BaseCell):
         #self._r = None # initialize them on request
         #self._s = None # initialize them on request
 
-    def _calc_mask(self, ref_points):
-
-        cutr = 1.1
-
-        mask = np.ones(self.nr, dtype=float)
-        for i in range(self.nr[0]):
-            for j in range(self.nr[1]):
-                for k in range(self.nr[2]):
-                    for point in ref_points:
-                        point = Coord(point, self)
-                        # print(point)
-                        dd = self.r[i, j, k].dd_mic(point)
-                        if dd < cutr:
-                            mask[i, j, k] = 0.
-        return mask
-
     @property
     def nr(self):
         return self._nr
@@ -61,7 +45,7 @@ class BaseGrid(BaseCell):
 
     # I don't see the need for these functions, so I'm gonna comment them out
     # The same can be achieved as: coord = Coord(lattice=array, cell=grid, basis="S"), instead of coord = grid.cristal_coord_array(array)
-    #def crystal_coord_array(self,array):
+    # def crystal_coord_array(self,array):
     #    '''Returns a Coord in crystal coordinates'''
     #    if isinstance(array, (Coord)):
     #        #TODO check units
@@ -69,13 +53,29 @@ class BaseGrid(BaseCell):
     #    else:
     #        return Coord(array, cell=self, ctype='Crystal', units=self.units)
 
-    #def cartesian_coord_array(self,array):
+    # def cartesian_coord_array(self,array):
     #    '''Returns a Coord in cartesian coordinates'''
     #    if isinstance(array, (Coord)):
     #        #TODO check units
     #        return array.to_cart()
     #    else:
     #        return Coord(array, cell=self, ctype='Cartesian', units=self.units)
+
+    # def _calc_mask(self, ref_points):
+
+    # cutr = 1.1
+
+    # mask = np.ones(self.nr, dtype=float)
+    # for i in range(self.nr[0]):
+    #     for j in range(self.nr[1]):
+    #         for k in range(self.nr[2]):
+    #             for point in ref_points:
+    #                 point = Coord(point, self)
+    #                 # print(point)
+    #                 dd = self.r[i, j, k].dd_mic(point)
+    #                 if dd < cutr:
+    #                     mask[i, j, k] = 0.
+    # return mask
 
 
 class DirectGrid(BaseGrid,DirectCell):
