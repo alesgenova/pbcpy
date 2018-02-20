@@ -2,10 +2,9 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
 [![PyPI status](https://img.shields.io/pypi/status/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
-[![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master) &nbsp;
-[![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/commits/master) &nbsp;
+[![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/pipelines) &nbsp;
+[![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/pipelines) &nbsp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-<!--[![PyPI pyversions](https://img.shields.io/pypi/pyversions/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;-->
 
 `pbcpy` is a Python3 package providing some useful abstractions to deal with
 molecules and materials under periodic boundary conditions (PBC).
@@ -51,7 +50,7 @@ A unit cell is defined by its lattice vectors. To create a `DirectCell` object w
 ```
 
 ### `DirectCell` and `ReciprocalCell` properties
-<!--- `units` : the length units of the lattice vectors-->
+
 - `lattice` : the lattice vectors (as columns)
 - `volume` : the volume of the cell
 - `origin` : the origin of the Cartesian reference frame
@@ -123,7 +122,6 @@ pbcpy.base.DirectCell
 
 ### `Coord` methods
 - `to_crys()`, `to_cart()` : convert `self` to crystal or cartesian basis (returns a new `Coord` object).
-<!--- `conv(units)` : converts cartesian coordinates (and the associated cell) to new units (returns new object).-->
 - `d_mic(other)` : Calculate the vector connecting two coordinates (from self to other), using the minimum image convention (MIC). The result is itself a `Coord` object.
 - `dd_mic(other)` : Calculate the distance between two coordinates, using the MIC.
 - `+`/`-` operators : Calculate the difference/sum between two coordinates without using the MIC. `basis` conversions are automatically performed when needed. The result is itself a `Coord` object.

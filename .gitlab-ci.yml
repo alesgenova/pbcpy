@@ -1,17 +1,18 @@
 build:
   image: python:3
+  before_script:
+    - pip install setuptools pypandoc
+    - apt-get update -qy
+    - apt-get install -y pandoc
+    - pandoc --from=markdown --to=rst --output=README.rst README.md
   script:
-  - pip install setuptools
-  - python setup.py sdist bdist
+    - python setup.py sdist bdist
 
 test:
   image: python:3
+  before_script:
+    - pip install -r requirements.txt  
+    - pip install pytest pytest-cov
   script:
-  - pip install -r requirements.txt  
-  - pip install pytest pytest-cov
-  - pytest --cov-report term-missing --cov=./src/ ./tests/
-  # Now using pytest to run the tests instead of unittest directly
-  #- pip install coverage
-  #- python -m unittest discover -s tests/
-  #- coverage run --source=./src -m unittest discover -s tests/
-  #- coverage report -m
+    - pytest --cov-report term-missing --cov=./src/ ./tests/
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
