@@ -1,19 +1,20 @@
 from setuptools import setup, find_packages
 import re
 import sys
+import os
 SRC_DIR = "./src"
 if SRC_DIR not in sys.path:
     sys.path.insert(0,SRC_DIR)
 from pbcpy import __version__, __author__, __contact__, __license__
 
+readme_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.md')
 try:
-    import pypandoc
-    with open('README.md', 'r') as f:
-        txt = f.read()
-    txt = re.sub('<[^<]+>', '', txt)
-    long_description = pypandoc.convert(txt, 'rst', 'md')
-except (IOError, ImportError):
-    long_description = open('README.md').read()
+    from m2r import parse_from_file
+    readme = parse_from_file(readme_file)
+except ImportError:
+    # m2r may not be installed in user environment
+    with open(readme_file) as f:
+        readme = f.read()
     long_description_old = '''
 pbcpy is a Python3 package providing some useful tools when dealing with
 molecules and materials under periodic boundary conditions (PBC).
@@ -30,7 +31,7 @@ The XCrySDen .xsf format (write only)
 setup(
     name='pbcpy',
     description='''A toolbox to make it easier to deal with materials under periodc boundary conditions.''',
-    long_description=long_description,
+    long_description=readme,
     version=__version__,
     url='https://gitlab.com/ales.genova/pbcpy/',
     author=__author__,

@@ -1,10 +1,7 @@
 build:
   image: python:3
   before_script:
-    - pip install setuptools pypandoc
-    - apt-get update -qy
-    - apt-get install -y pandoc
-    - pandoc --from=markdown --to=rst --output=README.rst README.md
+    - pip install setuptools m2r
   script:
     - python setup.py sdist
 

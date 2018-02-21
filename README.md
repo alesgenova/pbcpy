@@ -1,9 +1,9 @@
 # `PbcPy`
 
-[![PyPI version](https://img.shields.io/pypi/v/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
-[![PyPI status](https://img.shields.io/pypi/status/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/) &nbsp;
-[![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/pipelines) &nbsp;
-[![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/pipelines) &nbsp;
+[![PyPI version](https://img.shields.io/pypi/v/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/)
+[![PyPI status](https://img.shields.io/pypi/status/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/)
+[![pipeline status](https://gitlab.com/ales.genova/pbcpy/badges/master/pipeline.svg)](https://gitlab.com/ales.genova/pbcpy/pipelines)
+[![coverage report](https://gitlab.com/ales.genova/pbcpy/badges/master/coverage.svg)](https://gitlab.com/ales.genova/pbcpy/pipelines)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 `pbcpy` is a Python3 package providing some useful abstractions to deal with
