@@ -6,7 +6,7 @@ build:
     - apt-get install -y pandoc
     - pandoc --from=markdown --to=rst --output=README.rst README.md
   script:
-    - python setup.py sdist bdist
+    - python setup.py sdist
 
 test:
   image: python:3

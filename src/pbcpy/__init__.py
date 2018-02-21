@@ -1,8 +1,5 @@
-#from base import Cell, Coord
-#import griddata
-#import base
-#import grid
-#import atom
-#import system
-#import formats
-#import constants
+__author__ = "Alessandro Genova"
+__contact__ = "ales.genova@gmail.com"
+__license__ = "MIT"
+__version__ = "0.2.4"
+__date__ = "2018-02-21"
