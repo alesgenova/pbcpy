@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import re
 import sys
 import os
-SRC_DIR = "./src"
+SRC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),"./src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0,SRC_DIR)
 from pbcpy import __version__, __author__, __contact__, __license__
@@ -30,7 +30,7 @@ The XCrySDen .xsf format (write only)
 
 setup(
     name='pbcpy',
-    description='''A toolbox to make it easier to deal with materials under periodc boundary conditions.''',
+    description="A toolbox to make it easier to deal with materials under periodc boundary conditions.",
     long_description=readme,
     version=__version__,
     url='https://gitlab.com/ales.genova/pbcpy/',
@@ -47,6 +47,7 @@ setup(
     ],
     packages=find_packages('src'),  # include all packages under src
     package_dir={'':'src'},   # tell distutils packages are under src
+    include_package_data = True,
     install_requires=[
         'numpy>=1.6.0',
         'scipy>=0.10.0'

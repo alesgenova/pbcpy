@@ -1,4 +1,4 @@
-# `PbcPy`
+# PbcPy
 
 [![PyPI version](https://img.shields.io/pypi/v/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/)
 [![PyPI status](https://img.shields.io/pypi/status/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/)
@@ -15,12 +15,29 @@ Finally, `pbcpy` provides IO support to some common file formats:
 - Quantum Espresso `.pp` format (read only)
 - XCrySDen `.xsf` format (write only)
 
+## Index
+- [Authors](#authors)
+- [Fundamentals](#fundamentals)
+- [Installation](#installation)
+- [**DirectCell** and **ReciprocalCell** class](#directcell-and-reciprocalcell-class)
+- [**Coord** class](#coord-class)
+- [**DirectGrid** and **ReciprocalGrid** class](#directgrid-and-reciprocalgrid-class)
+- [**DirectField** and **ReciprocalField** class](#directfield-and-reciprocalfield-class)
+- [**System** class](#system-class)
+- [**pbcarray** class](#pbcarray-class)
+- [File Formats](#file-formats)
+
+
+## Authors
+
 `pbcpy` has been developed @ [Pavanello Research Group](http://michelepavanello.com/) by:
-- Alessandro Genova 
+- **Alessandro Genova**
+
+with contributions from:
 - Tommaso Pavanello
 - Michele Pavanello
 
-## Foundation of the package
+## Fundamentals
 - `DirectCell` and `Coord` classes which define a unit cell under PBC in real space, and a cartesian/crystal coordinate respectively;
 - `ReciprocalCell` class which defines a cell in reciprocal space;
 - `DirectGrid` and `ReciprocalGrid` classes, which are derived from `DirectCell` and `ReciprocalCell` and provide space discretization;
@@ -28,7 +45,7 @@ Finally, `pbcpy` provides IO support to some common file formats:
 
 ## Installation
 
-Install a stable version through `PyPI`
+Install `pbcpy` through `PyPI`
 ```
 pip install pbcpy
 ```
@@ -37,6 +54,8 @@ Install the dev version from `gitlab`
 ```
 git clone git@gitlab.com:ales.genova/pbcpy.git
 ```
+
+NOTE: `pbcpy` is in the early stages of development, classes and APIs are bound to be changed without prior notice.
 
 ## `DirectCell` and `ReciprocalCell` class
 A unit cell is defined by its lattice vectors. To create a `DirectCell` object we need to provide it a `3x3` matrix containing the lattice vectors (as columns).
@@ -75,7 +94,7 @@ array([[ 10.,   0.,   0.],
 
 Note, by default the physics convention is used when converting between direct and reciprocal lattice:
 
-```math
+```
 \big[\text{reciprocal.lattice}\big]^T = 2\pi \cdot \big[\text{direct.lattice}\big]^{-1}
 ```
 
@@ -282,7 +301,7 @@ pbcpy.grid.DirectGrid
 - `integral` : returns the integral of the field.
 - `get_3dinterpolation` : Interpolates the data to a different grid (returns a new `DirectField` object). 3rd order spline interpolation.
 - `get_cut(r0, [r1], [r2], [origin], [center], [nr])` : Get 1D/2D/3D cuts of the scalar field, by providing arbitraty vectors and an origin/center.
-- `fft` : Calculates the Fouries transform of self, and returns an instance of `ReciprocalField`, which contains the appropriate `ReciprocalGrid`
+- `fft` : Calculates the Fourier transform of self, and returns an instance of `ReciprocalField`, which contains the appropriate `ReciprocalGrid`
 
 ```python
 # Integrate the field over the whole grid
@@ -334,9 +353,9 @@ array([[ 1.57225214, -6.68207161, -0.43149218],
 pbcpy.field.ReciprocalField
 ```
 
-### `DirectField` methods
+### `ReciprocalField` methods
 
-- `ifft` : Calculates the inverse Fouries transform of self, and returns an instance of `DirectField`, which contains the appropriate `DirectGrid`
+- `ifft` : Calculates the inverse Fourier transform of self, and returns an instance of `DirectField`, which contains the appropriate `DirectGrid`
 
 ```python
 # inv fft:
