@@ -94,9 +94,12 @@ class DirectField(BaseField):
             padded_values, order=self.spl_order)
         return
 
-    def gradient(self):
-        if self.rank > 1:
-            raise Exception("gradient is only implemented for scalar fields")
+    def numerically_smooth_gradient(self):
+        sq_self = np.sqrt(self) 
+        return 2.0*sq_self*sq_self.standard_gradient()
+
+
+    def standard_gradient(self):
         reciprocal_self = self.fft()
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
@@ -107,6 +110,18 @@ class DirectField(BaseField):
             grad_g[...,i] = reciprocal_self.grid.g[...,i] * (reciprocal_self[...,0]*imag)
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
         return grad_g.ifft(check_real=True)
+
+
+
+    def gradient(self,flag='smooth'):
+        if self.rank > 1:
+            raise Exception("gradient is only implemented for scalar fields")
+        if flag is 'standard':
+            return standard_gradient(self)
+        elif flag is 'smooth':
+            return self.numerically_smooth_gradient()
+
+
 
     def sigma(self):
         """

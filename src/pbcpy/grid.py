@@ -221,7 +221,8 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
         if self._gg is None:
             if self._g is None:
                 self._calc_grid_points()
-            self._gg = np.einsum('ijkl,ijkl->ijk',self._g,self._g)
+            gg = np.einsum('ijkl,ijkl->ijk',self._g,self._g)
+            self._gg = np.reshape(gg,[self.nr[0],self.nr[1],self.nr[2],1])
         return self._gg
 
     def get_direct(self,scale=[1.,1.,1.],convention='physics'):
