@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import ndimage
-from .base import BaseCell, DirectCell, ReciprocalCell, Coord
+from .base import BaseCell, DirectCell, ReciprocalCell, Coord, s2r
 from .constants import LEN_CONV
 
 class BaseGrid(BaseCell):
@@ -155,6 +155,7 @@ class DirectGrid(BaseGrid,DirectCell):
         fac = 1.0
         if convention == 'physics' or convention == 'p':
             fac = 2*np.pi
+        fac = 2*np.pi
         bg = fac*np.linalg.inv(self.lattice)
         bg = bg.T
         #bg = bg/LEN_CONV["Bohr"][self.units]
@@ -196,19 +197,29 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
             S = np.ndarray(shape=(self.nr[0], self.nr[
                            1], self.nr[2], 3), dtype=float)
 
-            convention = 'mic'
             ax = []
             for i in range(3):
-                # use fftfreq function so we don't have to worry about odd or even number of points
-                dd=1
-                if convention == 'mic_scaled':
-                    dd=1/self.nr[i]
+                # use fftfreq function so we don't have to 
+                # worry about odd or even number of points
+                # dd: this choice of "spacing" is due to the 
+                # definition of real and reciprocal space for 
+                # a grid (which is not exactly a conventional 
+                # lattice), specifically:
+                #    1) the real-space points go from 0 to 1 in 
+                #       crystal coords in n steps of length 1/n
+                #    2) thus the reciprocal space (g-space) 
+                #       crystal coords go from 0 to n in n steps
+                #    3) the "physicists" 2*np.pi factor is 
+                #       included in the definition of reciprocal 
+                #       lattice vectors in the "grid" class and 
+                #       is applied with s2r in going from crystal 
+                #       to Cartesian g-space
+                dd=1/self.nr[i]
                 ax.append(np.fft.fftfreq(self.nr[i],d=dd))
-                #work = np.zeros(self.nr[i])
             S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(ax[0],ax[1],ax[2],indexing='ij')
 
-            #self._s = Coord(S, cell=self, basis='Crystal')
-            self._g = S
+            S_cart = s2r(S,self)
+            self._g = S_cart
 
     @property
     def g(self):
