@@ -26,11 +26,29 @@ class BaseField(np.ndarray):
     memo : optional string to label the field
 
     '''
-    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=None, griddata_F=None, griddata_C=None, griddata_3d=None):
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
 
+        if rank is None:
+            rank = 1
+            if griddata_3d is not None:
+               a=np.shape(np.shape(griddata_3d))[0] 
+               print('rank of griddata_3d=',a)
+               if a == 3:
+                   rank = 1
+               elif a == 4:
+                   rank = np.shape(griddata_3d)[3]
+            elif isinstance(cls,np.ndarray):
+               a = np.shape(np.shape(cls))[0]
+               print('rank of numpy.ndarray=',a)
+               if a == 3:
+                   rank = 1
+               elif a == 4:
+                   rank = np.shape(cls)[3]
+
         nr = *grid.nr, rank
+        print('nr in BaseField=',nr)
 
         if griddata_F is None and griddata_C is None and griddata_3d is None:
             input_values = np.zeros(nr)
@@ -72,7 +90,7 @@ class BaseField(np.ndarray):
 class DirectField(BaseField):
     spl_order = 3
 
-    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=None, griddata_F=None, griddata_C=None, griddata_3d=None):
         if not isinstance(grid, DirectGrid):
             raise TypeError("the grid argument is not an instance of DirectGrid")
         obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
@@ -96,7 +114,12 @@ class DirectField(BaseField):
 
     def numerically_smooth_gradient(self):
         sq_self = np.sqrt(self) 
-        return 2.0*sq_self*sq_self.standard_gradient()
+        print('Shape of sq_self=',np.shape(sq_self))
+        print(' Rank of sq_self=',sq_self.rank)
+        grad = (sq_self.standard_gradient())
+        if grad.rank != np.shape(grad)[3]:
+            raise ValueError("Gradient rank incompatible with shape")
+        return 2.0*sq_self*grad
 
 
     def standard_gradient(self):
@@ -109,7 +132,10 @@ class DirectField(BaseField):
             # FFT(\grad A) = i \vec(G) * FFT(A)
             grad_g[...,i] = reciprocal_self.grid.g[...,i] * (reciprocal_self[...,0]*imag)
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
-        return grad_g.ifft(check_real=True)
+        grad = grad_g.ifft(check_real=True)
+        if grad.rank != np.shape(grad)[3]:
+            raise ValueError("Standard Gradient: Gradient rank incompatible with shape")
+        return grad
 
 
 
@@ -117,7 +143,7 @@ class DirectField(BaseField):
         if self.rank > 1:
             raise Exception("gradient is only implemented for scalar fields")
         if flag is 'standard':
-            return standard_gradient(self)
+            return self.standard_gradient(self)
         elif flag is 'smooth':
             return self.numerically_smooth_gradient()
 
@@ -318,7 +344,7 @@ class DirectField(BaseField):
 
 class ReciprocalField(BaseField):
 
-    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=None, griddata_F=None, griddata_C=None, griddata_3d=None):
         if not isinstance(grid, ReciprocalGrid):
             raise TypeError("the grid argument is not an instance of ReciprocalGrid")
         obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)

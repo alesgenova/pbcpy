@@ -30,7 +30,7 @@ The XCrySDen .xsf format (write only)
 
 setup(
     name='pbcpy',
-    description="A toolbox to make it easier to deal with materials under periodc boundary conditions.",
+    description="A toolbox for easy handling of materials under periodc boundary conditions.",
     long_description=readme,
     version=__version__,
     url='https://gitlab.com/ales.genova/pbcpy/',
