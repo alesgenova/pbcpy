@@ -34,21 +34,14 @@ class BaseField(np.ndarray):
             rank = 1
             if griddata_3d is not None:
                a=np.shape(np.shape(griddata_3d))[0] 
-               print('rank of griddata_3d=',a)
-               if a == 3:
-                   rank = 1
-               elif a == 4:
+               if a == 4:
                    rank = np.shape(griddata_3d)[3]
-            elif isinstance(cls,np.ndarray):
-               a = np.shape(np.shape(cls))[0]
-               print('rank of numpy.ndarray=',a)
-               if a == 3:
-                   rank = 1
-               elif a == 4:
+            else:
+               a=np.shape(np.shape(cls))[0] 
+               if a == 4:
                    rank = np.shape(cls)[3]
 
         nr = *grid.nr, rank
-        print('nr in BaseField=',nr)
 
         if griddata_F is None and griddata_C is None and griddata_3d is None:
             input_values = np.zeros(nr)
@@ -71,15 +64,30 @@ class BaseField(np.ndarray):
 
     def __array_finalize__(self, obj):
         # Restore attributes when we are taking a slice
-        #print("BaseScalarField __array_finalize__")
         #print(type(self))
         #print(type(obj))
         #print(type(args[0]))
         if obj is None: return
         self.grid = getattr(obj, 'grid', None)
         self.span = getattr(obj, 'span', None)
-        self.rank = getattr(obj, 'rank', None)
         self.memo = getattr(obj, 'memo', None)
+        # getting the rank right - or at least trying to do so....
+        rank = 1
+        a=np.shape(np.shape(obj))[0] 
+        if a == 4:
+            rank = np.shape(obj)[3]
+        self.rank = rank
+
+    def __array_wrap__(self,obj,context=None):
+        '''wrap it up'''
+        b = np.ndarray.__array_wrap__(self, obj, context)
+        b.rank = self.rank * obj.rank
+        rank = 1
+        a=np.shape(np.shape(obj))[0] 
+        if a == 4:
+            rank = np.shape(obj)[3]
+        b.rank = rank
+        return b
 
     def integral(self):
         ''' Returns the integral of self '''
@@ -114,12 +122,11 @@ class DirectField(BaseField):
 
     def numerically_smooth_gradient(self):
         sq_self = np.sqrt(self) 
-        print('Shape of sq_self=',np.shape(sq_self))
-        print(' Rank of sq_self=',sq_self.rank)
         grad = (sq_self.standard_gradient())
         if grad.rank != np.shape(grad)[3]:
             raise ValueError("Gradient rank incompatible with shape")
-        return 2.0*sq_self*grad
+        final = 2.0*sq_self*grad
+        return final
 
 
     def standard_gradient(self):
