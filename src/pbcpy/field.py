@@ -26,9 +26,20 @@ class BaseField(np.ndarray):
     memo : optional string to label the field
 
     '''
-    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=None, griddata_F=None, griddata_C=None, griddata_3d=None):
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
+
+        if rank is None:
+            rank = 1
+            if griddata_3d is not None:
+               a=np.shape(np.shape(griddata_3d))[0] 
+               if a == 4:
+                   rank = np.shape(griddata_3d)[3]
+            else:
+               a=np.shape(np.shape(cls))[0] 
+               if a == 4:
+                   rank = np.shape(cls)[3]
 
         nr = *grid.nr, rank
 
@@ -53,15 +64,30 @@ class BaseField(np.ndarray):
 
     def __array_finalize__(self, obj):
         # Restore attributes when we are taking a slice
-        #print("BaseScalarField __array_finalize__")
         #print(type(self))
         #print(type(obj))
         #print(type(args[0]))
         if obj is None: return
         self.grid = getattr(obj, 'grid', None)
         self.span = getattr(obj, 'span', None)
-        self.rank = getattr(obj, 'rank', None)
         self.memo = getattr(obj, 'memo', None)
+        # getting the rank right - or at least trying to do so....
+        rank = 1
+        a=np.shape(np.shape(obj))[0] 
+        if a == 4:
+            rank = np.shape(obj)[3]
+        self.rank = rank
+
+    def __array_wrap__(self,obj,context=None):
+        '''wrap it up'''
+        b = np.ndarray.__array_wrap__(self, obj, context)
+        #b.rank = self.rank * obj.rank
+        rank = 1
+        a=np.shape(np.shape(obj))[0] 
+        if a == 4:
+            rank = np.shape(obj)[3]
+        b.rank = rank
+        return b
 
     def integral(self):
         ''' Returns the integral of self '''
@@ -72,7 +98,7 @@ class BaseField(np.ndarray):
 class DirectField(BaseField):
     spl_order = 3
 
-    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=None, griddata_F=None, griddata_C=None, griddata_3d=None):
         if not isinstance(grid, DirectGrid):
             raise TypeError("the grid argument is not an instance of DirectGrid")
         obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
@@ -94,9 +120,16 @@ class DirectField(BaseField):
             padded_values, order=self.spl_order)
         return
 
-    def gradient(self):
-        if self.rank > 1:
-            raise Exception("gradient is only implemented for scalar fields")
+    def numerically_smooth_gradient(self):
+        sq_self = np.sqrt(self) 
+        grad = (sq_self.standard_gradient())
+        if grad.rank != np.shape(grad)[3]:
+            raise ValueError("Gradient rank incompatible with shape")
+        final = 2.0*sq_self*grad
+        return final
+
+
+    def standard_gradient(self):
         reciprocal_self = self.fft()
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
@@ -106,7 +139,22 @@ class DirectField(BaseField):
             # FFT(\grad A) = i \vec(G) * FFT(A)
             grad_g[...,i] = reciprocal_self.grid.g[...,i] * (reciprocal_self[...,0]*imag)
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
-        return grad_g.ifft(check_real=True)
+        grad = grad_g.ifft(check_real=True)
+        if grad.rank != np.shape(grad)[3]:
+            raise ValueError("Standard Gradient: Gradient rank incompatible with shape")
+        return grad
+
+
+
+    def gradient(self,flag='smooth'):
+        if self.rank > 1:
+            raise Exception("gradient is only implemented for scalar fields")
+        if flag is 'standard':
+            return self.standard_gradient(self)
+        elif flag is 'smooth':
+            return self.numerically_smooth_gradient()
+
+
 
     def sigma(self):
         """
@@ -303,7 +351,7 @@ class DirectField(BaseField):
 
 class ReciprocalField(BaseField):
 
-    def __new__(cls, grid, memo="", rank=1, griddata_F=None, griddata_C=None, griddata_3d=None):
+    def __new__(cls, grid, memo="", rank=None, griddata_F=None, griddata_C=None, griddata_3d=None):
         if not isinstance(grid, ReciprocalGrid):
             raise TypeError("the grid argument is not an instance of ReciprocalGrid")
         obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)

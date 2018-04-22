@@ -87,7 +87,7 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = DirectField(grid=grid, griddata_F=ppgrid)
+            plot = DirectField(grid=grid, griddata_F=ppgrid, rank=1)
 
             return System(atoms, grid, name=self.title, field=plot)
 
