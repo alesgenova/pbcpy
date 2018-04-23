@@ -120,16 +120,15 @@ class DirectField(BaseField):
             padded_values, order=self.spl_order)
         return
 
-    def numerically_smooth_gradient(self):
+    def _numerically_smooth_gradient(self):
         sq_self = np.sqrt(self) 
-        grad = (sq_self.standard_gradient())
+        grad = (sq_self._standard_gradient())
         if grad.rank != np.shape(grad)[3]:
             raise ValueError("Gradient rank incompatible with shape")
         final = 2.0*sq_self*grad
         return final
 
-
-    def standard_gradient(self):
+    def _standard_gradient(self):
         reciprocal_self = self.fft()
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
@@ -144,25 +143,23 @@ class DirectField(BaseField):
             raise ValueError("Standard Gradient: Gradient rank incompatible with shape")
         return grad
 
-
-
-    def gradient(self,flag='smooth'):
+    def gradient(self, flag='smooth'):
         if self.rank > 1:
             raise Exception("gradient is only implemented for scalar fields")
         if flag is 'standard':
-            return self.standard_gradient(self)
+            return self._standard_gradient(self)
         elif flag is 'smooth':
-            return self.numerically_smooth_gradient()
+            return self._numerically_smooth_gradient()
+        else:
+            raise Exception("Unknown gradient method: {}".format(flag))
 
-
-
-    def sigma(self):
+    def sigma(self, flag='smooth'):
         """
         \sigma(r) = |\grad rho(r)|^2
         """
         if self.rank > 1:
             raise Exception("sigma is only implemented for scalar fields")
-        gradrho = self.gradient()
+        gradrho = self.gradient(flag)
         griddata_3d = np.einsum("ijkl,ijkl->ijk", gradrho, gradrho)
         return DirectField(self.grid, rank=1, griddata_3d=griddata_3d)
 

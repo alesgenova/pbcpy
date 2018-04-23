@@ -40,7 +40,7 @@ class Atom(object):
         if '1000' in lines[iend]:
             print('Recpot pseudopotential ' +outfile+ ' loaded')
         else:
-            return Exception
+            raise Exception("Error reading the pseudopotential {}".format(outfile))
         gmax = np.float(lines[ibegin-1].strip())*BOHR2ANG
         v = np.array(line.split()).astype(np.float)/HARTREE2EV/BOHR2ANG**3
         g = np.linspace(0,gmax,num=len(v))
@@ -62,7 +62,7 @@ class Atom(object):
         '''
         Returns the Structure Factor associated to this ion
         '''
-        a=-self.Zval*np.exp(-1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos))
+        a = -(self.Zval*np.exp(-1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos)))
         return np.reshape(a,[reciprocal_grid.nr[0],reciprocal_grid.nr[1],reciprocal_grid.nr[2],1])
 
 
