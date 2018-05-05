@@ -81,7 +81,7 @@ class BaseField(np.ndarray):
     def __array_wrap__(self,obj,context=None):
         '''wrap it up'''
         b = np.ndarray.__array_wrap__(self, obj, context)
-        b.rank = self.rank * obj.rank
+        #b.rank = self.rank * obj.rank
         rank = 1
         a=np.shape(np.shape(obj))[0] 
         if a == 4:
