@@ -27,7 +27,7 @@ class BaseGrid(BaseCell):
         super().__init__(lattice=lattice, origin=origin, units=units, **kwargs)
         self._nr = np.asarray(nr)
         self._nnr = nr[0] * nr[1] * nr[2]
-        self._dV = self._volume / self._nnr
+        self._dV = np.abs(self._volume) / self._nnr
         #self._r = None # initialize them on request
         #self._s = None # initialize them on request
 
