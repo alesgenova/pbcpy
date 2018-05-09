@@ -30,18 +30,17 @@ class BaseField(np.ndarray):
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
 
-        if rank is None:
-            rank = 1
-            if griddata_3d is not None:
-               a=np.shape(np.shape(griddata_3d))[0] 
-               if a == 4:
-                   rank = np.shape(griddata_3d)[3]
-            else:
-               a=np.shape(np.shape(cls))[0] 
-               if a == 4:
-                   rank = np.shape(cls)[3]
-
+        rank = 1
         nr = *grid.nr, rank
+        if griddata_3d is not None:
+           a=np.shape(np.shape(griddata_3d))[0] 
+           if a == 4:
+               rank = np.shape(griddata_3d)[3]
+               nr = *grid.nr, rank
+           #elif a == 3:
+           #    rank = 1 
+           #    nr = grid.nr
+
 
         if griddata_F is None and griddata_C is None and griddata_3d is None:
             input_values = np.zeros(nr)
@@ -121,8 +120,8 @@ class DirectField(BaseField):
         return
 
     def numerically_smooth_gradient(self):
-        sq_self = np.sqrt(self) 
-        grad = (sq_self.standard_gradient())
+        sq_self = np.sqrt(np.abs(self)) 
+        grad = np.real(sq_self.standard_gradient())
         if grad.rank != np.shape(grad)[3]:
             raise ValueError("Gradient rank incompatible with shape")
         final = 2.0*sq_self*grad
@@ -139,18 +138,31 @@ class DirectField(BaseField):
             # FFT(\grad A) = i \vec(G) * FFT(A)
             grad_g[...,i] = reciprocal_self.grid.g[...,i] * (reciprocal_self[...,0]*imag)
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
-        grad = grad_g.ifft(check_real=True)
+        grad = np.real(grad_g.ifft(check_real=True))
         if grad.rank != np.shape(grad)[3]:
             raise ValueError("Standard Gradient: Gradient rank incompatible with shape")
         return grad
 
-
+    def divergence(self):
+        if self.rank != 3:
+            raise ValueError("Divergence: Rank incompatible")
+        imag = (0 + 1j)
+        nr = *self.grid.nr, 3
+        grad_g = np.zeros(nr, dtype=complex)
+        nr = *self.grid.nr, 1
+        reciprocal_self = np.zeros(nr, dtype=complex)
+        grad_g= self.grid.get_reciprocal().g*self.fft()*imag
+        grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
+        grad = grad_g.ifft(check_real=True)
+        div = np.sum(grad,axis=-1)
+        div.rank = 1
+        return DirectField(self.grid,rank=1,griddata_3d=div)
 
     def gradient(self,flag='smooth'):
         if self.rank > 1:
             raise Exception("gradient is only implemented for scalar fields")
         if flag is 'standard':
-            return self.standard_gradient(self)
+            return self.standard_gradient()
         elif flag is 'smooth':
             return self.numerically_smooth_gradient()
 
@@ -164,7 +176,7 @@ class DirectField(BaseField):
             raise Exception("sigma is only implemented for scalar fields")
         gradrho = self.gradient()
         griddata_3d = np.einsum("ijkl,ijkl->ijk", gradrho, gradrho)
-        return DirectField(self.grid, rank=1, griddata_3d=griddata_3d)
+        return DirectField(self.grid, rank=1, griddata_3d=np.abs(np.real(griddata_3d)))
 
     def fft(self):
         ''' Implements the Discrete Fourier Transform
@@ -172,11 +184,22 @@ class DirectField(BaseField):
         Compute the N(=3)-dimensional discrete Fourier Transform
         Returns a new Grid_Function_Reciprocal
         '''
+        dim = np.shape(np.shape(self))[0]
+        #print("Shape = ",dim)
+        if dim == 3:
+            self.rank = 1
+            nr = *self.grid.nr, self.rank
+            other = self.reshape(nr)
+            self = other
+        else:
+            nr = *self.grid.nr, self.rank
+        dim = np.shape(np.shape(self))[0]
+        #print("New Shape = ",dim)
         reciprocal_grid = self.grid.get_reciprocal()
-        nr = *self.grid.nr, self.rank
         griddata_3d = np.zeros(nr, dtype=complex)
         for i in range(self.rank):
-            griddata_3d[...,i] = np.fft.fftn(self[...,i])*self.grid.dV
+            #print("BLEAH! = ",np.shape(np.fft.fftn(self[:,:,:,i])))
+            griddata_3d[:,:,:,i] = np.fft.fftn(self[:,:,:,i])*self.grid.dV
         return ReciprocalField(grid=reciprocal_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
 
     def get_value_at_points(self, points):
@@ -380,3 +403,7 @@ class ReciprocalField(BaseField):
             if np.isclose(np.imag(griddata_3d),0.,atol=1.e-16).all():
                 griddata_3d = np.real(griddata_3d)
         return DirectField(grid=direct_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
+
+
+
+

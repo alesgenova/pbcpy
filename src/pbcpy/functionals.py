@@ -24,6 +24,7 @@ class Functional(object):
 
 
     def __init__(self, name='N/A', energydensity=None, potential=None, kernel=None):
+        self.name = name
         if energydensity is not None:
             if isinstance(energydensity, DirectField):
                 self.energydensity = energydensity
