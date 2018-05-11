@@ -128,6 +128,22 @@ class DirectField(BaseField):
         return final
 
 
+    def super_smooth_gradient(self):
+        reciprocal_self = self.fft()
+        imag = (0 + 1j)
+        nr = *self.grid.nr, 3
+        grad_g = np.zeros(nr, dtype=complex)
+        # Quantum Espresso way!
+        for i in range(3):
+            # FFT(\grad A) = i \vec(G) * FFT(A)
+            grad_g[...,i] = reciprocal_self.grid.g[...,i] * (reciprocal_self[...,0]*imag) * np.exp(-reciprocal_self.grid.gg[...,0]*(0.1/2.0)**2  )
+        grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
+        grad = np.real(grad_g.ifft(check_real=True))
+        if grad.rank != np.shape(grad)[3]:
+            raise ValueError("Standard Gradient: Gradient rank incompatible with shape")
+        return grad
+
+
     def standard_gradient(self):
         reciprocal_self = self.fft()
         imag = (0 + 1j)
@@ -151,7 +167,7 @@ class DirectField(BaseField):
         grad_g = np.zeros(nr, dtype=complex)
         nr = *self.grid.nr, 1
         reciprocal_self = np.zeros(nr, dtype=complex)
-        grad_g= self.grid.get_reciprocal().g*self.fft()*imag
+        grad_g= self.grid.get_reciprocal().g*self.fft()*imag* np.exp(-self.grid.get_reciprocal().gg*(0.1/2.0)**2  )
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
         grad = grad_g.ifft(check_real=True)
         div = np.sum(grad,axis=-1)
@@ -165,6 +181,8 @@ class DirectField(BaseField):
             return self.standard_gradient()
         elif flag is 'smooth':
             return self.numerically_smooth_gradient()
+        elif flag is 'supersmooth':
+            return self.super_smooth_gradient()
 
 
 
@@ -387,7 +405,7 @@ class ReciprocalField(BaseField):
         super().__array_finalize__(obj)
         self.spl_coeffs = None
 
-    def ifft(self, check_real=False):
+    def ifft(self, check_real=False, force_real=False):
         '''
         Implements the Inverse Discrete Fourier Transform
         - Standard FFTs -
@@ -402,6 +420,8 @@ class ReciprocalField(BaseField):
         if check_real:
             if np.isclose(np.imag(griddata_3d),0.,atol=1.e-16).all():
                 griddata_3d = np.real(griddata_3d)
+        if force_real:
+            griddata_3d = np.real(griddata_3d)
         return DirectField(grid=direct_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
 
 

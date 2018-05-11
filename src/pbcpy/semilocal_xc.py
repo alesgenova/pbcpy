@@ -49,9 +49,9 @@ def Get_LibXC_Output(out,density):
 
     OutFunctional = Functional(name='LibXC')
 
+    do_sigma = False
     if "vsigma" in out.keys():
         do_sigma = True
-
 
     if do_sigma:
         sigma = density.sigma().reshape(np.shape(density)[0]*np.shape(density)[1]*np.shape(density)[2])
@@ -68,11 +68,21 @@ def Get_LibXC_Output(out,density):
         OutFunctional.energydensity = DirectField(density.grid,rank=1,griddata_3d=edens*density)
         OutFunctional.potential     = DirectField(density.grid,rank=1,griddata_3d=vrho)
     else:
-        prodotto=vsigma*density.gradient() 
+        grho = density.gradient(flag='supersmooth')
+        rho_3 = grho.copy()
+        rho_3[:,:,:,0] = density[:,:,:,0]
+        rho_3[:,:,:,1] = density[:,:,:,0]
+        rho_3[:,:,:,2] = density[:,:,:,0]
+        prodotto=vsigma*grho 
+        a = np.zeros(np.shape(prodotto))
+        mask1 = np.where( grho > 1.0e-10 )
+        mask2 = np.where( rho_3 > 1.0e-6 )
+        a[mask1] = prodotto[mask1]
+        a[mask2] = prodotto[mask2]
         vsigma_last = prodotto.divergence()
         v=vrho-2*vsigma_last
-        OutFunctional.energydensity = DirectField(density.grid,rank=1,griddata_3d=edens*density)
-        OutFunctional.potential     = DirectField(density.grid,rank=1,griddata_3d=v)
+        OutFunctional.energydensity = DirectField(density.grid,rank=1,griddata_3d=np.real(edens*density))
+        OutFunctional.potential     = DirectField(density.grid,rank=1,griddata_3d=np.real(v))
 
     return OutFunctional 
 
@@ -109,6 +119,9 @@ def XC(density,x_str,c_str,polarization):
 
 def PBE(density,polarization):
     return XC(density=density,x_str='gga_x_pbe',c_str='gga_c_pbe',polarization='unpolarized')
+
+def LDA(density,polarization):
+    return XC(density=density,x_str='lda_x',c_str='lda_c_pz',polarization='unpolarized')
 
 
 

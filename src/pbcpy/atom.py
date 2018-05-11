@@ -62,7 +62,8 @@ class Atom(object):
         '''
         Returns the Structure Factor associated to this ion
         '''
-        a=-self.Zval*np.exp(-1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos))
+        print("ion charge = ",self.Zval)
+        a=np.exp(-1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos))
         return np.reshape(a,[reciprocal_grid.nr[0],reciprocal_grid.nr[1],reciprocal_grid.nr[2],1])
 
 

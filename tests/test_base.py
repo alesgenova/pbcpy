@@ -4,7 +4,7 @@ import numpy as np
 from pbcpy.base import DirectCell, ReciprocalCell, Coord, pbcarray
 from pbcpy.constants import LEN_CONV
 
-from tests.common import run_test_orthorombic, run_test_triclinic, make_orthorombic_cell
+from .common import run_test_orthorombic, run_test_triclinic, make_orthorombic_cell
 
 class TestCell(unittest.TestCase):
     

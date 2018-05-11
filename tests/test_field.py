@@ -22,7 +22,7 @@ class TestField(unittest.TestCase):
         grid = make_orthorombic_cell(A=A,B=B,C=C,CellClass=DirectGrid, nr=nr, units="Angstrom")
         d = N/grid.volume
         initial_vals = np.ones(nr)*d
-        cls.constant_field = DirectField(grid=grid, griddata_3d=initial_vals)
+        cls.constant_field = DirectField(grid=grid, griddata_3d=initial_vals,rank=1)
         cls.N = N
 
     
@@ -51,6 +51,7 @@ class TestField(unittest.TestCase):
         # gradient
         gradient = field.gradient()
         self.assertTrue(isinstance(gradient, DirectField))
+        self.assertEqual(field.rank, 1)
         self.assertEqual(gradient.rank, 3)
 
     def test_direct_field_interpolation(self):
@@ -83,3 +84,8 @@ class TestField(unittest.TestCase):
         print("TODO: Michele, some simple tests for which we have analytic solutions?")
         # TODO: Michele, some simple tests for which we have analytic solutions?
         pass
+
+
+
+
+
