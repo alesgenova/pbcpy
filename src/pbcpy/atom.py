@@ -38,7 +38,7 @@ class Atom(object):
         line = " ".join([line.strip() for line in lines[ibegin:iend]])
 
         if '1000' in lines[iend]:
-            print('Recpot pseudopotential ' +outfile+ ' loaded')
+            print('Recpot pseudopotential '+outfile+' loaded')
         else:
             return Exception
         gmax = np.float(lines[ibegin-1].strip())*BOHR2ANG
@@ -62,7 +62,6 @@ class Atom(object):
         '''
         Returns the Structure Factor associated to this ion
         '''
-        print("ion charge = ",self.Zval)
         a=np.exp(-1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos))
         return np.reshape(a,[reciprocal_grid.nr[0],reciprocal_grid.nr[1],reciprocal_grid.nr[2],1])
 

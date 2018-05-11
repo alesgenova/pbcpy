@@ -112,7 +112,8 @@ def XC(density,x_str,c_str,polarization):
     Functional_X = Get_LibXC_Output(out_x,density)
     Functional_C = Get_LibXC_Output(out_c,density)
     Functional_XC = Functional_X.sum(Functional_C)
-    Functional_XC.name = x_str[6:]+c_str[6:]
+    name = x_str[6:]+"_"+c_str[6:]
+    Functional_XC.name = name.upper()
     return Functional_XC
 
 
