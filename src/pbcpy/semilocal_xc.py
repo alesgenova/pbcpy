@@ -126,3 +126,27 @@ def LDA(density,polarization):
 
 
 
+def KEDF(density,k_str,polarization):
+    '''
+     Output: 
+        - Functional_KEDF: a PBCpy KEDF functional evaluated with LibXC
+     Input:
+        - density: a DirectField (rank=1)
+        - k_str: strings like "gga_k_lc94"
+        - polarization: string like "polarized" or "unpolarized"
+    '''
+    if not isinstance(k_str, str):
+        raise AttributeError("k_str must be a LibXC functional. Check pylibxc.util.xc_available_functional_names()")
+    if not isinstance(polarization, str):
+        raise AttributeError("polarization must be a ``polarized`` or ``unpolarized``")
+    if not isinstance(density,(DirectField)):
+        raise AttributeError("density must be a rank-1 PBCpy DirectField")
+    func_k = LibXCFunctional(k_str, polarization)
+    inp=Get_LibXC_Input(density)
+    out_k = func_k.compute(inp)
+    Functional_KEDF = Get_LibXC_Output(out_k,density)
+    name = k_str[6:]
+    Functional_KEDF.name = name.upper()
+    return Functional_KEDF
+
+

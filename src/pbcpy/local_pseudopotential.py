@@ -20,3 +20,9 @@ def NuclearElectron(ions,density,PPs):
         NuclearElectron = NuclearElectron.sum(eN_tmp)
     NuclearElectron.name = 'Local Pseudopotential'
     return NuclearElectron
+
+
+
+
+
+

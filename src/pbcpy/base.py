@@ -35,7 +35,7 @@ class BaseCell(object):
             print("WARN")
             warnings.warn(units_warning, DeprecationWarning)
         self._units = None
-        self._volume = np.dot(lattice[:, 0], np.cross(lattice[:, 1], lattice[:, 2]))
+        self._volume = np.abs(np.dot(lattice[:, 0], np.cross(lattice[:, 1], lattice[:, 2])))
         super().__init__(**kwargs)
 
     def __eq__(self, other):
