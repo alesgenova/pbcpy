@@ -1,4 +1,5 @@
 from .field import DirectField, ReciprocalField
+import numpy as np
 import warnings
 
 class Functional(object):

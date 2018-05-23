@@ -419,3 +419,43 @@ True
 # such as the one we generated earlier
 >>> XSF(filexsf='/path/to/output.xsf').write(system=water_dimer, field=rho_cut)
 ```
+
+# Orbital-Free DFT capability
+`pbcpy` has a built-in `Functional` class which can be populated with Kinetic Energy functionals (KEDFs), XC functionals, local Pseudo-Potentials and Hartree. LibXC is used for GGA functionals (except vW).
+The LibXC interface relies on pylibxc, which needs to be installed. 
+### install libxc
+ - download / git clone libxc at 
+ - make sure to have installed cmake and autoreconf
+
+1) cd to libxc 
+2) autoreconf -i
+3) ./configure --prefix=/opt --libdir=/opt/lib --enable-shared --disable-fortran LIBS=-lm
+4) make
+5) sudo make install
+6) sudo python setup.py install
+
+### example
+```python
+# load needed classes / foundries
+>>> from pbcpy.formats.qepp import PP 
+>>> from pbcpy.semilocal_xc import PBE, LDA, XC, KEDF
+>>> from pbcpy.local_pseudopotential import NuclearElectron
+>>> from pbcpy.hartree import HartreeFunctional
+# load electron density from file.pp and array of PP files (only Al atoms in this case)
+>>> mol = PP(filepp='./file.pp').read()
+>>> rho_of_r = mol.field
+# obtain the local part of the PP
+>>> NuclearElectron = NuclearElectron(mol.ions,rho_of_r,["./Al_lda.oe01.recpot","./Al_lda.oe01.recpot"])
+# Hartree potential / energy
+>>> Hartree = HartreeFunctional(rho_of_r)
+# LDA XC
+>>> ExchangeCorrelation_LDA = LDA(rho_of_r,polarization='unpolarized')
+# PBE XC
+>>> ExchangeCorrelation_PBE = PBE(rho_of_r,polarization='unpolarized')
+# LC94 KEDF
+>>> LC94 = KEDF(density=rho_of_r,k_str='gga_k_lc94',polarization='unpolarized')
+# add the potential to obtain the total *effective* KS potential
+>>> KS_effective = NuclearElectron.sum(Hartree).sum(PBE)
+>>> potential = KS_effective.potential
+>>> energydensity = KS_effective.energydensity
+```
