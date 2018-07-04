@@ -14,9 +14,10 @@ def NuclearElectron(ions,density,PPs):
     if not isinstance(density,(DirectField)):
         raise AttributeError("Density must be a PBCpy DirectField")
     natoms=np.shape(ions)[0]
-    NuclearElectron = ions[0].local_PP(grid=density.grid,rho=density,outfile=PPs[0])
+    alpha_mu = np.zeros(natoms)
+    NuclearElectron = ions[0].local_PP(grid=density.grid,rho=density,PP_file=PPs[0])
     for i in range(1,natoms,1):
-        eN_tmp = ions[i].local_PP(grid=density.grid,rho=density,outfile=PPs[i])
+        eN_tmp = ions[i].local_PP(grid=density.grid,rho=density,PP_file=PPs[i])
         NuclearElectron = NuclearElectron.sum(eN_tmp)
     NuclearElectron.name = 'Local Pseudopotential'
     return NuclearElectron

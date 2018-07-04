@@ -8,12 +8,33 @@ import numpy as np
 
 class Atom(object):
 
-    def __init__(self, Z=None, Zval=None, label=None, pos=None, cell=None):
+    def __init__(self, Z=None, Zval=None, label=None, pos=None, cell=None, PP_file=None):
+        '''
+        Atom class handles atomic position, atom type and local pseudo potentials.
+        '''
 
         self.Z = Z
         self.label = label
         self.Zval = Zval
         self.pos = Coord(pos, cell, basis='Cartesian')
+        self.PP_file = PP_file
+
+        # private vars
+        self._gp = None       # 1D PP grid g-space 
+        self._vp = None       # PP on 1D PP grid
+        self._alpha_mu = None # G=0 of PP
+        self._v = None        # PP for atom on 3D PW grid 
+
+
+
+
+        if self.PP_file is not None:
+            self._gp, self._vp = self.set_PP(self.PP_file)
+            self._alpha_mu = self._vp[0]
+        else:
+            print('PP_file not set in input. Can do so manually invoking Atom.local_PP')
+
+
 
         if Z is None:
             self.Z = z2lab.index(label)
@@ -66,24 +87,59 @@ class Atom(object):
         return np.reshape(a,[reciprocal_grid.nr[0],reciprocal_grid.nr[1],reciprocal_grid.nr[2],1])
 
 
-    def local_PP(self,grid,rho,outfile):
+    def local_PP(self,grid,rho,PP_file):
+        '''
+        Reads and interpolates the local pseudo potential.
+        INPUT: grid, rho, and path to the PP file
+        OUTPUT: Functional class containing 
+            - local pp in real space as potential 
+            - v*rho as energydensity.
+        '''
+        if self._v is None:
+            self.Get_PP_Reciprocal(grid,PP_file)
+        vreal = DirectField(grid=grid,griddata_3d=np.real(self._v.ifft()))
+        ereal = DirectField(grid=grid,griddata_3d=vreal*rho)
+        return Functional(name='eN',energydensity=ereal, potential=vreal)
+
+
+    def Get_PP_Reciprocal(self,grid,PP_file):   
         import os.path
-        if not os.path.isfile(outfile):
+        if not os.path.isfile(PP_file):
             print("PP file not found")
             return Exception
+        self._gp, self._vp = self.set_PP(PP_file)
         reciprocal_grid = grid.get_reciprocal()
         g = reciprocal_grid.g
         q = np.sqrt(reciprocal_grid.gg)
         strf = self.strf(reciprocal_grid)
-        gp, vp = self.set_PP(outfile)
-        vloc_interp = self.interpolate_PP(gp, vp)
+        vloc_interp = self.interpolate_PP(self._gp, self._vp)
         vloc = np.zeros(np.shape(q))
-        vloc[q<np.max(gp)] = vloc_interp(q[q<np.max(gp)])
+        vloc[q<np.max(self._gp)] = vloc_interp(q[q<np.max(self._gp)])
         v = ReciprocalField(reciprocal_grid,griddata_3d=vloc * strf)
-        vreal = DirectField(grid=grid,griddata_3d=np.real(v.ifft()))
-        ereal = DirectField(grid=grid,griddata_3d=vreal*rho)
-        return Functional(name='eN',energydensity=ereal, potential=vreal)
+        self._v = v 
+        return "PP successfully interpolated"
 
+
+    @property
+    def v(self):
+        if self._v is not None:
+            return self._v
+        else:
+            return Exception("Must load PP first")
+
+
+    @property
+    def alpha_mu(self):
+        if self._alpha_mu is not None:
+            return self._alpha_mu
+        else:
+            if self._vp is not None:
+                return self._vp[0]
+            if self.PP_file is not None:
+                self._gp, self._vp = self.set_PP(PP_file)
+                return self._vp[0]
+            return Exception
+         
 z2lab = ['NA', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
          'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
          'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',

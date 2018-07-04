@@ -1,4 +1,4 @@
-# Drivers for LibXC
+# Hartree functional
 
 import numpy as np
 from .functionals import *

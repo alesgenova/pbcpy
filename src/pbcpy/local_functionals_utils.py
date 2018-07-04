@@ -47,6 +47,15 @@ def vonWeizsackerEnergy(rho):
     sq_dens = np.sqrt(rho)
     return DirectField(grid=rho.grid,griddata_3d=0.5*np.real(np.einsum('ijkl->ijk',sq_dens.gradient()**2)))
 
+def HartreePotentialReciprocalSpace(density):
+    gg=density.grid.get_reciprocal().gg
+    rho_of_g = density.fft()
+    v_h = rho_of_g.copy()
+    v_h[0,0,0,0] = np.float(0.0)
+    mask = gg != 0
+    v_h[mask] = rho_of_g[mask]*gg[mask]**(-1)*4*np.pi
+    return v_h
+
 def vW(rho,Sigma=0.025):
     pot = vonWeizsackerPotential(rho,Sigma)
     ene = vonWeizsackerEnergy(rho)
@@ -63,5 +72,11 @@ def x_TF_y_vW(rho,x=1.0,y=1.0,Sigma=0.025):
     OutFunctional.energydensity = ene
     return OutFunctional
 
-
+def TF(rho):
+    pot = ThomasFermiPotential(rho)
+    ene = ThomasFermiEnergy(rho)
+    OutFunctional = Functional(name='TF')
+    OutFunctional.potential = pot
+    OutFunctional.energydensity = ene
+    return OutFunctional
 

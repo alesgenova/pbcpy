@@ -43,39 +43,9 @@ class BaseGrid(BaseCell):
     def dV(self):
         return self._dV
 
-    # I don't see the need for these functions, so I'm gonna comment them out
-    # The same can be achieved as: coord = Coord(lattice=array, cell=grid, basis="S"), instead of coord = grid.cristal_coord_array(array)
-    # def crystal_coord_array(self,array):
-    #    '''Returns a Coord in crystal coordinates'''
-    #    if isinstance(array, (Coord)):
-    #        #TODO check units
-    #        return array.to_crys()
-    #    else:
-    #        return Coord(array, cell=self, ctype='Crystal', units=self.units)
-
-    # def cartesian_coord_array(self,array):
-    #    '''Returns a Coord in cartesian coordinates'''
-    #    if isinstance(array, (Coord)):
-    #        #TODO check units
-    #        return array.to_cart()
-    #    else:
-    #        return Coord(array, cell=self, ctype='Cartesian', units=self.units)
-
-    # def _calc_mask(self, ref_points):
-
-    # cutr = 1.1
-
-    # mask = np.ones(self.nr, dtype=float)
-    # for i in range(self.nr[0]):
-    #     for j in range(self.nr[1]):
-    #         for k in range(self.nr[2]):
-    #             for point in ref_points:
-    #                 point = Coord(point, self)
-    #                 # print(point)
-    #                 dd = self.r[i, j, k].dd_mic(point)
-    #                 if dd < cutr:
-    #                     mask[i, j, k] = 0.
-    # return mask
+    @property
+    def Volume(self):
+        return self._volume
 
 
 class DirectGrid(BaseGrid,DirectCell):
