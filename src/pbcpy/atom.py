@@ -42,12 +42,12 @@ class Atom(object):
         if label is None:
             self.label = z2lab[self.Z]
 
-    def set_PP(self,outfile):
+    def set_PP(self,PP_file):
         '''Reads CASTEP-like recpot PP file
         Returns tuple (g, v)'''
         HARTREE2EV = 27.2113845
         BOHR2ANG   = 0.529177211
-        with open(outfile,'r') as outfil:
+        with open(PP_file,'r') as outfil:
             lines = outfil.readlines()
 
         for i in range(0,len(lines)):
@@ -59,7 +59,7 @@ class Atom(object):
         line = " ".join([line.strip() for line in lines[ibegin:iend]])
 
         if '1000' in lines[iend]:
-            print('Recpot pseudopotential '+outfile+' loaded')
+            print('Recpot pseudopotential '+PP_file+' loaded')
         else:
             return Exception
         gmax = np.float(lines[ibegin-1].strip())*BOHR2ANG
@@ -135,10 +135,10 @@ class Atom(object):
         else:
             if self._vp is not None:
                 return self._vp[0]
-            if self.PP_file is not None:
+            elif self.PP_file is not None:
                 self._gp, self._vp = self.set_PP(PP_file)
                 return self._vp[0]
-            return Exception
+            return Exception("Must define PP before requesting alpha_mu")
          
 z2lab = ['NA', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
          'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
