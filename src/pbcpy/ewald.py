@@ -5,7 +5,6 @@ import sys
 from .grid import DirectGrid, ReciprocalGrid
 from .field import DirectField, ReciprocalField
 from .functionals import *
-from .local_pseudopotential import NuclearElectron
 from .hartree import HartreeFunctional, HartreePotentialReciprocalSpace
 from .formats.qepp import PP
 
