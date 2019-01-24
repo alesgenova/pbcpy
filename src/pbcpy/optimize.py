@@ -10,7 +10,9 @@ class optimize(object):
 
     def __init__(self, ppfile=None, ions=None, rho=None, KEDF=None, ExchangeCorrelation=None, PP=None, 
                  initial_guess=None, 
-                 optimization_method=None, method_options=None, verbose=False):
+                 optimization_method=None, 
+                 method_options=None, 
+                 verbose=False):
         '''
         This class minimizes the energy varying a DirectField rho while maintaining
         constant the number of electrons. 
@@ -18,7 +20,7 @@ class optimize(object):
          E[\rho] \to E[\frac{N}{\int \rho}\rho].
         $$
         INPUT: ppfile      a pp file from some other calculation (QE, pbcpy, etc..).
-               ions        Atom class array.
+               ions        Atom class list.
                rho         DirectField, the electron density.
                KEDF        the Kinetic energy functional
                XC          the XC functional
@@ -31,21 +33,29 @@ class optimize(object):
         self.res_ = None
 
         if ions is not None:
+            if not isinstance(ions,list):
+                raise AttributeError("ions must be a list of Atoms")
             self.ions      = ions
         else:
             raise Exception("Must pass ions to Optimize")
             
         if PP is not None:
+            if not isinstance(PP,list):
+                raise AttributeError("PP must be a list of pp files")
             self.PP      = PP
         else:
             raise Exception("Must pass pseudo potential files to Optimize")
 
         if rho is not None:
+            if not isinstance(rho,DirectField):
+                raise AttributeError("rho must be a PBCpy DirectField")
             self.rho       = rho
         else:
             raise Warning("Density rho not passed to Optimize. Try to pass a ppfile.")
 
         if optimization_method is not None:
+            if not isinstance(optimization_method,str):
+                raise AttributeError("optimization_method must be a string")
             self.optimization_method       = optimization_method
         else:
             self.optimization_method='L-BFGS-B'
@@ -60,14 +70,17 @@ class optimize(object):
 
             
         if ppfile is not None:
+            if not isinstance(ppfile,str):
+                raise AttributeError("ppfile must be a string")
             self.ppfile       = ppfile
         else:
             raise Warning("ppfile rho not passed to Optimize. Must pass a rho & ions.")
 
-        if self.ppfile is None:
+        if self.ppfile is None and rho is None and ions is None:
             raise Exception("either ppfile or rho & ions must be given to Optimize")
 
         if initial_guess is not None:
+            # this will include cases here - not coded yet
             self.initial_guess       = initial_guess
         else:
             raise Warning("Using input rho as initial guess.")
