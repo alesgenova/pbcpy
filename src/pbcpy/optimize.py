@@ -85,7 +85,10 @@ class optimize(object):
         else:
             raise Warning("Using input rho as initial guess.")
 
+        # this is a good idea but need to refactor Functional class.
         if KEDF is not None:
+            if not isinstance(KEDF,Functional):
+                raise AttributeError("KEDF must be a Functional")
             self.KEDF       = KEDF
         else:
             raise Warning("Must pass a KEDF to Optimize")
