@@ -118,15 +118,15 @@ def XC(density,x_str,c_str,polarization):
 
 
 
-def PBE(density,polarization):
-    return XC(density=density,x_str='gga_x_pbe',c_str='gga_c_pbe',polarization='unpolarized')
+def PBE(density,polarization='unpolarized'):
+    return XC(density=density,x_str='gga_x_pbe',c_str='gga_c_pbe',polarization)
 
-def LDA(density,polarization):
-    return XC(density=density,x_str='lda_x',c_str='lda_c_pz',polarization='unpolarized')
+def LDA(density,polarization='unpolarized'):
+    return XC(density=density,x_str='lda_x',c_str='lda_c_pz',polarization)
 
 
 
-def KEDF(density,k_str,polarization):
+def KEDF(density,k_str='gga_k_lc94',polarization='unpolarized'):
     '''
      Output: 
         - Functional_KEDF: a PBCpy KEDF functional evaluated with LibXC
