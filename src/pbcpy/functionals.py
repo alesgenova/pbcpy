@@ -118,7 +118,7 @@ class FunctionalClass(AbstractFunctional):
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
                 return vW(rho=rho,Sigma=Sigma)
             if self.name == 'x_TF_y_vW':
-                Sigma = optional_kwargs.get('Sigma',0.025)
+                Sigma = self.optional_kwargs.get('Sigma',0.025)
                 x = self.optional_kwargs.get('x',1.0)
                 y = self.optional_kwargs.get('x',0.0)
                 return x_TF_y_vW(rho=rho,x=x,y=y,Sigma=Sigma)
@@ -211,6 +211,13 @@ class TotalEnergyAndPotential(object):
     
     def ComputeEnergyDensityPotential(self,rho):
         return self.KineticEnergyFunctional(rho) + self.XCFunctional(rho) + self.IONS(rho) + self.HARTREE(rho)
+
+ 
+    def Energy(self,rho,ions):
+        from .ewald import ewald
+        ewald_ = ewald(rho=rho,ions=ions)
+        total_edens =  self.KineticEnergyFunctional.ComputeEnergyDensityPotential(rho) + self.XCFunctional.ComputeEnergyDensityPotential(rho)  + self.HARTREE.ComputeEnergyDensityPotential(rho)
+        return ewald_.energy + total_edens.energydensity.integral()
 
 
 
