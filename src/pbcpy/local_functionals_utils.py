@@ -3,7 +3,7 @@
 import numpy as np
 from .field import DirectField,ReciprocalField
 from .grid import DirectGrid, ReciprocalGrid
-from .functionals import Functional
+from .functional_output import Functional
 
 def ThomasFermiPotential(rho):
     '''

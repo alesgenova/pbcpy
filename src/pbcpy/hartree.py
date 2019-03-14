@@ -1,7 +1,7 @@
 # Hartree functional
 
 import numpy as np
-from .functionals import *
+from .functional_output import Functional
 
 def HartreeFunctional(density):
     gg=density.grid.get_reciprocal().gg

@@ -2,7 +2,7 @@
 
 import numpy as np
 from .field import DirectField
-from .functionals import *
+from .functional_output import Functional
 import pylibxc 
 from pylibxc.functional import LibXCFunctional
 

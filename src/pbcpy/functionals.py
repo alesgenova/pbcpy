@@ -1,48 +1,217 @@
+# Class handling functional evaluations 
+# functional class (output handler) in output
+
+# local imports
+from .grid import DirectGrid, ReciprocalGrid
 from .field import DirectField, ReciprocalField
+from .functional_output import Functional
+from .semilocal_xc import PBE, LDA, XC, KEDF
+from .local_functionals_utils import TF,vW, x_TF_y_vW
+from .local_pseudopotential import NuclearElectron
+from .hartree import HartreeFunctional
+
+# general python imports
+from abc import ABC, abstractmethod
 import numpy as np
-import warnings
 
-class Functional(object):
-    '''
-    Object representing a DFT functional
+
+class AbstractFunctional(ABC):
+
+    @abstractmethod
+    def __init__(self):
+        pass
     
-    Attributes
-    ----------
-    name: string
-        The (optional) name of the functional
+    @abstractmethod
+    def __call__ (self,rho,**kwargs):
+        # call the XC and such... depending on kwargs
+        # Interface for scipy.optimize
+        pass
+    
+    @abstractmethod
+    def ComputeEnergyDensityPotential(self,rho,**kwargs):
+        # returns edens and pot
+        pass
 
-    energydensity: DirectField
-        The energy density 
+    def GetName(self):
+        return self.name
 
-    potential: DirectField
-        The first functional derivative of the functional wrt 
-        the electron density 
-        
-    kernel: ReciprocalField
-        The value of the reciprocal space kernel. This will
-        be populated only if the functional is nonlocal
-    '''
-
-
-    def __init__(self, name='N/A', energydensity=None, potential=None, kernel=None):
+    def GetType(self):
+        return self.type
+    
+    def AssignName(self,name):
         self.name = name
-        if energydensity is not None:
-            if isinstance(energydensity, DirectField):
-                self.energydensity = energydensity
+
+    def AssignType(self,type):
+        self.type = type
+
+    def CheckFunctional(self):
+        if self.type not in self.FunctionalTypeList:
+            print(self.type,' is not a valid Functional type')
+            print('Valid Functional types are:')
+            print(self.FunctionalTypeList)
+            return False
+        if self.name not in self.FunctionalNameList:
+            print(self.name, ' is not a valid Functional name')
+            print('Valid Functional names are:')
+            print(self.FunctionalNameList)
+            return False
+        return True
+
+
+class FunctionalClass(AbstractFunctional):
+    
+    def __call__(self,rho):
+        return self.ComputeEnergyDensityPotential(rho)
+    
+    def __init__(self,type=None,name=None,is_nonlocal=None,optional_kwargs=None):
+        #init the class
+        
+        if optional_kwargs is None:
+            self.optional_kwargs = { }
+        else:
+            self.optional_kwargs = optional_kwargs
+        
+        self.FunctionalNameList = []
+        self.FunctionalTypeList = []
+        
+        self.FunctionalTypeList = ['XC','KEDF','IONS','HARTREE']
+        XCNameList = ['LDA','PBE','LIBXC_XC','CUSTOM_XC']
+        KEDFNameList = ['TF','vW','x_TF_y_vW','LC94','revAPBEK','TFvW','LIBXC_KEDF','CUSTOM_KEDF']
+        KEDFNLNameList = ['WT','MGP','MGP0','WGC2','WGC1','WGC0','LMGP','LMGP0','LWT']
+        IONSNameList = ['IONS']
+        HNameList = ['HARTREE']
+        
+        self.FunctionalNameList = XCNameList + KEDFNameList + KEDFNLNameList + IONSNameList +HNameList
+        
+        if type is None:
+            raise AttributeError('Must assign type to FunctionalClass')
+        else:
+            self.type = type
+
+        if name is None:
+            if type not in ['HARTREE','IONS']:
+                raise AttributeError('Must assign name to FunctionalClass')
             else:
-                print('Cazzarola!')
-        if potential is not None:
-            if isinstance(potential, DirectField):
-                self.potential = potential
-        if kernel is not None:
-            if isinstance(kernel, (np.ndarray)):
-                self.kernel = kernel
+                self.name=self.type
+        else:
+            self.name = name
+
+        if is_nonlocal is None:
+            if type not in ['HARTREE','IONS']:
+                raise AttributeError('Must assign is_nonlocal to FunctionalClass')
+            else:
+                self.is_nonlocal=False
+        else:
+            self.is_nonlocal = is_nonlocal
+            
+        if not isinstance(self.optional_kwargs,dict):
+            raise AttributeError('optional_kwargs must be dict')
+            
+        if not self.CheckFunctional():
+            raise Exception ('Functional check failed') 
+    
+    def ComputeEnergyDensityPotential(self,rho):
+        if self.type == 'KEDF':
+            if self.name == 'TF':
+                return TF(rho)
+            if self.name == 'vW':
+                Sigma = self.optional_kwargs.get('Sigma',0.025)
+                return vW(rho=rho,Sigma=Sigma)
+            if self.name == 'x_TF_y_vW':
+                Sigma = optional_kwargs.get('Sigma',0.025)
+                x = self.optional_kwargs.get('x',1.0)
+                y = self.optional_kwargs.get('x',0.0)
+                return x_TF_y_vW(rho=rho,x=x,y=y,Sigma=Sigma)
+            if self.name == 'LC94':
+                polarization = self.optional_kwargs.get('polarization','unpolarized')
+                return KEDF(density=rho,polarization=polarization,k_str='gga_k_lc94')
+            if self.name == 'LIBXC_KEDF':
+                polarization = self.optional_kwargs.get('polarization','unpolarized')
+                k_str = optional_kwargs.get('k_str','gga_k_lc94')
+                return KEDF(density=rho,polarization=polarization,k_str=k_str)
+            if self.is_nonlocal == True:
+                raise Exception('Nonlocal KEDF to be implemented')
+        if self.type == 'XC':
+            if self.name == 'LDA':
+                polarization = self.optional_kwargs.get('polarization','unpolarized')
+                return LDA(density=rho,polarization=polarization)
+            if self.name == 'PBE':
+                polarization = self.optional_kwargs.get('polarization','unpolarized')
+                return PBE(density=rho,polarization=polarization)
+            if self.name == 'LIBXC_XC':
+                polarization = self.optional_kwargs.get('polarization','unpolarized')
+                x_str = self.optional_kwargs.get('x_str','gga_x_pbe')
+                c_str = self.optional_kwargs.get('c_str','gga_c_pbe')
+                return XC(density=rho,x_str=x_str,c_str=c_str,polarization=polarization)
+        if self.type == 'HARTREE':
+            return HartreeFunctional(density=rho)
+        if self.type == 'IONS':
+            PP_list = self.optional_kwargs.get('PP_list')
+            ions = self.optional_kwargs.get('ions')
+            return NuclearElectron(density=rho,ions=ions,PPs=PP_list)
 
 
-    def sum(self,other):
-        energydensity = self.energydensity+other.energydensity
-        potential = self.potential+other.potential
-        return Functional(energydensity=energydensity,potential=potential)
+
+class TotalEnergyAndPotential(object):
+    
+    def __init__(self,KineticEnergyFunctional=None, XCFunctional=None, IONS=None, HARTREE=None, rho=None):
+        
+
+        if KineticEnergyFunctional is None:
+            raise AttributeError('Must define KineticEnergyFunctional')
+        elif not isinstance(KineticEnergyFunctional, FunctionalClass):
+            raise AttributeError('KineticEnergyFunctional must be FunctionalClass')
+        else:
+            self.KineticEnergyFunctional = KineticEnergyFunctional
+                                 
+        if XCFunctional is None:
+            raise AttributeError('Must define XCFunctional')
+        elif not isinstance(XCFunctional, FunctionalClass):
+            raise AttributeError('XCFunctional must be FunctionalClass')
+        else:
+            self.XCFunctional = XCFunctional
+                                 
+        if IONS is None:
+            raise AttributeError('Must define IONS')
+        elif not isinstance(IONS, FunctionalClass):
+            raise AttributeError('IONS must be FunctionalClass')
+        else:
+            self.IONS = IONS
+                                 
+        if HARTREE is None:
+            print('WARNING: using FFT Hartree')
+            self.HARTREE = HARTREE
+        else:
+            self.HARTREE = HARTREE
+                                 
+        if rho is None:
+            raise AttributeError('Must define rho')
+        elif not isinstance(rho, DirectField):
+            raise AttributeError('rho must be DirectField')
+        else:
+            self.rho = rho
+            self.N = self.rho.integral()
+            
+    def __call__ (self,phi):
+        # call the XC and such... depending on kwargs
+        rho_shape = np.shape(self.rho)
+        if not isinstance(phi, DirectField):
+            phi_ = DirectField(self.rho.grid,griddata_3d=np.reshape(phi,rho_shape),rank=1)
+        else:
+            phi_ = phi
+        rho_ = phi_*phi_
+        N_=rho_.integral()
+        rho_ *= self.N/N_
+        func = self.ComputeEnergyDensityPotential(rho_)
+        E=func.energydensity.integral()
+        int_tem_ = phi_*phi_*func.potential
+        other_term_ = - int_tem_.integral() / N_
+        final_v_ = ( func.potential + other_term_ ) * 2.0 * phi_  * self.N/N_ * rho_.grid.dV
+        return  E , final_v_.ravel()
+    
+    def ComputeEnergyDensityPotential(self,rho):
+        return self.KineticEnergyFunctional(rho) + self.XCFunctional(rho) + self.IONS(rho) + self.HARTREE(rho)
+
 
 
 

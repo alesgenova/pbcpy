@@ -1,7 +1,7 @@
 from .base import Coord
 from .field import ReciprocalField, DirectField
 from .grid import DirectGrid, ReciprocalGrid
-from .functionals import Functional
+from .functional_output import Functional
 from scipy.interpolate import interp1d
 import numpy as np
 
