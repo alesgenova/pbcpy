@@ -3,7 +3,32 @@ from scipy.optimize import minimize
 from .field import DirectField
 
 class Optimization(object):
-    
+    '''
+    Class handling electron density optimization.
+    minimizer based on scipy.minimize
+
+    Attributes
+    ---------
+    optimization_method: string
+            See scipy.minimize for available methods
+            default: L-BFGS-B
+
+    optimization_options: dict
+            kwargs for the minim. method
+            optional if method is L-BFGS-B
+
+    EnergyEvaluator: TotalEnergyAndPotential class   
+            
+
+    guess_rho: DirectField, optional
+            an initial guess for the electron density
+
+     Example
+     -------
+     EE = TotalEnergyAndPotential(...)
+     opt = Optimization(EnergyEvaluator=EE)
+     new_rho = Optimization.get_optimal_rho(guess_rho)
+    ''' 
 
     def __init__(self, 
                  optimization_method='L-BFGS-B', 

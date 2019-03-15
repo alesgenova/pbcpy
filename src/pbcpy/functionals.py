@@ -59,8 +59,47 @@ class AbstractFunctional(ABC):
 
 
 class FunctionalClass(AbstractFunctional):
+    '''
+    Object handling evaluation of a DFT functional
     
+    Attributes
+    ----------
+    name: string
+        The name of the functional
+
+    type: string
+        The functional type (XC, KEDF, HARTREE, IONS) 
+
+    is_nonlocal: logical
+        Is the functional a nonlocal functional? 
+        
+    optional_kwargs: dict
+        set of kwargs for the different functional types/names
+
+ 
+    Example
+    -------
+     XC = FunctionalClass(type='XC',name='LDA')
+     outXC = XC(rho)
+     outXC.energydensity --> the edens
+     outXC.potential     --> the pot
+    '''
+
+
     def __call__(self,rho):
+        '''
+        Functional class is callable
+
+        Attributes 
+        ----------  
+          rho: DirectField
+             The input density
+
+        Returns
+        -------
+          Functional: functional output handler
+             The output is a Functional class
+        '''
         return self.ComputeEnergyDensityPotential(rho)
     
     def __init__(self,type=None,name=None,is_nonlocal=None,optional_kwargs=None):
@@ -153,6 +192,37 @@ class FunctionalClass(AbstractFunctional):
 
 
 class TotalEnergyAndPotential(object):
+    '''
+     Object handling energy evaluation for the 
+     purposes of optimizing the electron density
+     
+     Attributes
+     ----------
+
+     KineticEnergyFunctional, XCFunctional, IONS, HARTREE: FunctionalClass
+         Instances of functional class needed for the computation
+         of the chemical potential, total potential and total energy.
+
+     Example
+     -------
+
+     XC = FunctionalClass(type='XC',name='LDA')
+     KE = FunctionalClass(type='KEDF',name='TF')
+     HARTREE = FunctionalClass(type='HARTREE')
+     IONS = FunctionalClass(type='IONS', kwargs)
+
+     EnergyEvaluator = TotalEnergyAndPotential(KEDF,XC,IONS,HARTREE,rho_guess)
+
+     [the energy:]
+     E = EnergyEvaluator.Energy(rho,ions)
+     
+     [total energy and potential:]
+     out = EnergyEvaluator.ComputeEnergyDensityPotential(rho)
+     edens = out.energydensity ...
+
+     [time for optimization of density:]
+     in_for_scipy_minimize = EnergyEvaluator(phi)
+    '''
     
     def __init__(self,KineticEnergyFunctional=None, XCFunctional=None, IONS=None, HARTREE=None, rho=None):
         
