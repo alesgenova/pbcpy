@@ -1,0 +1,46 @@
+  1.600000000000000E-003
+           2 As_lda.oe04.recpot            
+ ncharge   40.0000000000000     
+ charge_ave  5.060606398735734E-002
+ grid point          42          42          42
+  WT coef, alpha=  0.833333333333333     
+  WT coef, beta=  0.833333333333333     
+  WT coef, ft=   1.66666666666667     
+  WT coef, rho0=  5.060606398735734E-002
+ Print the G space Wang-Teter KEDF kernels into WT-kernel-G.dat 
+ The iteration is            2
+ The iteration is            3
+ The iteration is            4
+ The iteration is            5
+ The iteration is            6
+ The iteration is            7
+ The iteration is            8
+ The iteration is            9
+ The iteration is           10
+ The iteration is           11
+ The iteration is           12
+ The iteration is           13
+ ! the finally chemical potential (mu) is  0.466335809090216     
+ !----------------------------------------------------------
+ Scf time is    5.12550000000000     
+ !----------------------------------------------------------
+ Total Energy  -42.9246880744642     
+            Total time is =   5.621000000000E+00
+ !----------------------------------------------------------
+ Thomas-Fermi Kin. Energy =   5.065827241511E+02
+ Von-Weisaker Kin. Energy =   6.276655509556E+01
+          WT  Kin. Energy =  -4.212318494631E+01
+ 
+      Exchange-cor Energy =  -3.732774020835E+02
+           Coulomb Energy =   2.917510043234E+02
+           ionele  Energy =  -4.256418757948E+02
+            Ewald  Energy =  -1.188097966463E+03
+ 
+             Total Energy =  -1.168040145718E+03
+ 
+            Total time is =   5.621000000000E+00
+ Total Energy is  -1168.04014571773     
+ Sum of energy  -1125.91696077142     
+ Volume is   790.419108863969     
+ lat1 is   12.6277655843012     
+ !----------------------------------------------------------
