@@ -1,3 +1,24 @@
+# pyOFDFT
+
+`pyOFDFT` is an Orbital-Free Density Functional Theory code based on a plane-wave 
+expansion of the electron density. The code bases itself on `pbcpy`.
+ - `pyOFDFT` at [PRG](http://michelepavanello.com/) at Rutgers University-Newark @MikPavanello
+ - `pbcpy` by Alessandro Genova @AlesGeno previously at PRG now @Kitware
+
+
+## Main classes of pyOFDFT
+ - `FunctionalClass`
+    1. GGA XC and KEDF handled by `LibXC` (`pylibxc`)
+    2. nonlocal KEDF will be available soon
+    3. `HARTREE` and electron-ion pseudopotentials (local) are also encoded in `FunctionalClass` instances
+ - `TotalEnergyAndPotential`
+    1. total energy evaluator
+    2. uses `XC`, `KEDF`, `IONS` and `HARTREE` `FunctionalClass` instances
+    3. `.Energy(rho,ions)` evaluates the energy
+- `OptimizationClass`
+    1. optimizes the electron density given a `TotalEnergyAndPotential`
+    2. uses `scipy.minimize` as the under-the-hood minimizer
+
 # PbcPy
 
 [![PyPI version](https://img.shields.io/pypi/v/pbcpy.svg)](https://pypi.python.org/pypi/pbcpy/)
@@ -30,7 +51,7 @@ Finally, `pbcpy` provides IO support to some common file formats:
 
 ## Authors
 
-`pbcpy` has been developed @ [Pavanello Research Group](http://michelepavanello.com/) by:
+`pbcpy` has been developed at [PRG](http://michelepavanello.com/) by:
 - **Alessandro Genova**
 
 with contributions from:
