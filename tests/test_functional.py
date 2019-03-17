@@ -3,7 +3,6 @@ import numpy as np
 
 from pbcpy.functionals import FunctionalClass
 from pbcpy.constants import LEN_CONV
-from pbcpy.functionals import FunctionalClass
 from pbcpy.semilocal_xc import XC,PBE
 
 class TestFunctional(unittest.TestCase):
@@ -12,8 +11,8 @@ class TestFunctional(unittest.TestCase):
         print()
         print("*"*50)
         print("Testing FunctionalClass XC")
-        dimer = PP(filepp="tests/density_ks.pp").read()
-        rho_r = dimer.field
+        mol = PP(filepp="tests/Al_fde_rho.pp").read()
+        rho_r = mol.field
         thefuncclass = FunctionalClass(type='XC',name='LDA',is_nonlocal=False)
         func2 = thefuncclass.ComputeEnergyDensityPotential(rho=rho_r)
         func1  = XC(density=rho_r,x_str='lda_x',c_str='lda_c_pz',polarization='unpolarized') 
@@ -25,11 +24,10 @@ class TestFunctional(unittest.TestCase):
         print()
         print("*"*50)
         print("Testing FunctionalClass XC")
-        dimer = PP(filepp="tests/density_ks.pp").read()
-        rho_r = dimer.field
+        mol = PP(filepp="tests/Al_fde_rho.pp").read()
+        rho_r = mol.field
         Functional_LibXC = XC(density=rho_r,x_str='gga_x_pbe',c_str='gga_c_pbe',polarization='unpolarized')
         Functional_LibXC2 = PBE(rho_r,'unpolarized')
-        a = np.sum( - )
         self.assertTrue(np.isclose(Functional_LibXC2.energydensity,Functional_LibXC.energydensity).all())
 
 
