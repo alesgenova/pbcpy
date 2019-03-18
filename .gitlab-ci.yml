@@ -1,6 +1,12 @@
 build:
   image: python:3
   before_script:
+    - git clone https://gitlab.com/libxc/libxc.git
+    - cd libxc
+    - ./configure --prefix=./
+    - make
+    - make install
+    - python setup.py install
     - pip install setuptools m2r
   script:
     - python setup.py sdist
