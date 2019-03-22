@@ -3,6 +3,7 @@ build:
   before_script:
     - git clone https://gitlab.com/libxc/libxc.git
     - cd libxc
+    - cp ../install_files/configure .
     - ./configure --prefix=./
     - make
     - make install
