@@ -1,6 +1,7 @@
 build:
   image: python:3
-  before_script:
+  before_script
+    - apt-get install gcc gfortran
     - git clone https://gitlab.com/libxc/libxc.git
     - cd libxc
     - home=$( pwd )
