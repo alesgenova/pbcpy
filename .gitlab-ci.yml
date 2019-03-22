@@ -3,8 +3,9 @@ build:
   before_script:
     - git clone https://gitlab.com/libxc/libxc.git
     - cd libxc
+    - home=$( pwd )
     - cp ../install_files/configure .
-    - ./configure --prefix=./
+    - ./configure --prefix=$home
     - make
     - make install
     - python setup.py install
