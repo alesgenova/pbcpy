@@ -4,7 +4,7 @@ build:
     - git clone https://gitlab.com/libxc/libxc.git
     - cd libxc
     - home=$( pwd )
-    - cp ../install_files/configure .
+    - cp ../install_files/* .
     - ./configure --prefix=$home
     - make
     - make install
