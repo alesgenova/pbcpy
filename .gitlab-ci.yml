@@ -1,7 +1,7 @@
 build:
   image: python:3
   before_script:
-    - apt-get update -qq && apt-get install -y -qq gcc gfortran automake
+    - apt-get update -qq && apt-get install -y -qq gcc gfortran automake cmake
     - git clone https://gitlab.com/libxc/libxc.git
     - home=$( pwd )
     - cd libxc
