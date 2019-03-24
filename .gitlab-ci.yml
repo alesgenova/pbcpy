@@ -1,6 +1,6 @@
 build:
   image: python:3
-  before_script
+  before_script:
     - apt-get update -qq && apt-get install -y -qq gcc gfortran
     - git clone https://gitlab.com/libxc/libxc.git
     - cd libxc
