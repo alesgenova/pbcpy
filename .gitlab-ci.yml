@@ -6,6 +6,7 @@ build:
     - cd libxc
     - home=$( pwd )
     - cp ../install_files/* .
+    - cp Makefile.in src/.
     - ./configure --prefix=$home
     - make
     - make install
