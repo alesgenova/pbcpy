@@ -7,7 +7,7 @@ build:
     - home=$( pwd )
     - cp ../install_files/* .
     - cp Makefile_src.in src/.
-    = cp Makefile_maple.in maple/.
+    - cp Makefile_maple.in maple/.
     - ./configure --prefix=$home
     - make
     - make install
