@@ -6,8 +6,8 @@ build:
     - cd libxc
     - home=$( pwd )
     - cp ../install_files/* .
-    - cp Makefile_src.in src/.
-    - cp Makefile_maple.in maple/.
+    - cp Makefile_src.in src/Makefile.in
+    - cp Makefile_maple.in maple/Makefile.in
     - ./configure --prefix=$home
     - make
     - make install
