@@ -1,21 +1,16 @@
 build:
   image: python:3
   before_script:
-    - apt-get update -qq && apt-get install -y -qq gcc gfortran
+    - apt-get update -qq && apt-get install -y -qq gcc gfortran automake
     - git clone https://gitlab.com/libxc/libxc.git
-    - cd libxc
     - home=$( pwd )
-    - cp ../install_files/* .
-    - cp Makefile_src.in src/Makefile.in
-    - cp Makefile_maple.in maple/Makefile.in
-    - cp Makefile_testsuite.in testsuite/Makefile.in
-    - cp Makefile_build.in build/Makefile.in
-    - cp Makefile_scripts.in scripts/Makefile.in
-    - cp Makefile_src_maple2c.in src/maple2c/Makefile.in
-    - ./configure --prefix=$home
+    - cd libxc
+    - autoreconf -i
+    - ./configure --prefix=${home}/libxc
     - make
     - make install
     - python setup.py install
+    - cd ..
     - pip install setuptools m2r
   script:
     - python setup.py sdist
