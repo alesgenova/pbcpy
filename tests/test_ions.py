@@ -27,6 +27,6 @@ class TestFunctional(unittest.TestCase):
         func  = IONS.ComputeEnergyDensityPotential(rho=mol.field)
         a = func.potential
         b = ion_pp.field 
-        self.assertTrue(np.isclose(a,b).all())
+        self.assertTrue(np.isclose(a,b)).all()
 
 
