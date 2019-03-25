@@ -3,6 +3,7 @@ import numpy as np
 
 from pbcpy.functionals import FunctionalClass
 from pbcpy.constants import LEN_CONV
+from pbcpy.formats.qepp import PP
 
 class TestFunctional(unittest.TestCase):
     
