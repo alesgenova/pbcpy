@@ -1,4 +1,4 @@
-build:
+BuildAndTest:
   image: python:3
   before_script:
     - apt-get update -qq && apt-get install -y -qq gcc gfortran automake cmake
@@ -12,14 +12,9 @@ build:
     - python setup.py install
     - cd ..
     - pip install setuptools m2r
-  script:
-    - python setup.py sdist
-
-test:
-  image: python:3
-  before_script:
-    - pip install -r requirements.txt  
     - pip install pytest pytest-cov
   script:
+    - python setup.py sdist
+    - pip install -r requirements.txt
     - pytest --cov-report term-missing --cov=./src/ ./tests/
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
