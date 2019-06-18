@@ -73,7 +73,8 @@ class PP(object):
                 tau = np.asarray(linesplt[1:4], dtype=float)
                 ity = int(linesplt[4]) - 1
                 atoms.append(Atom(Zval=zv[ity], label=atm[
-                             ity], pos=tau * celldm[0], cell=grid))
+                             ity], pos=tau, cell=grid, basis = 'Crystal'))
+                             # ity], pos=tau * celldm[0], cell=grid))
 
             # self.atoms = Ions( nat, ntyp, atm, zv, tau*celldm[0], ityp, self.grid)
 

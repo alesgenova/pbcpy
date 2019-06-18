@@ -8,7 +8,7 @@ import numpy as np
 
 class Atom(object):
 
-    def __init__(self, Z=None, Zval=None, label=None, pos=None, cell=None, PP_file=None):
+    def __init__(self, Z=None, Zval=None, label=None, pos=None, cell=None, PP_file=None, basis='Cartesian'):
         '''
         Atom class handles atomic position, atom type and local pseudo potentials.
         '''
@@ -16,7 +16,9 @@ class Atom(object):
         self.Z = Z
         self.label = label
         self.Zval = Zval
-        self.pos = Coord(pos, cell, basis='Cartesian')
+        # self.pos = Coord(pos, cell, basis='Cartesian')
+        self.pos = Coord(pos, cell, basis=basis).to_cart()
+
         self.PP_file = PP_file
 
         # private vars

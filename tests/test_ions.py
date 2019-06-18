@@ -14,8 +14,8 @@ class TestFunctional(unittest.TestCase):
         path_pp='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
         path_rho='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/rho/'
         path_ion='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/pot_ion/'
-        file1='As_lda.oe04.recpot'
-        file2='Ga_lda.oe04.recpot'
+        file2='As_lda.oe04.recpot'
+        file1='Ga_lda.oe04.recpot'
         rhofile='GaAs_rho_test_1.pp'
         ionfile='GaAs_ion_test_1.pp'
         mol = PP(filepp=path_rho+rhofile).read()
@@ -27,6 +27,7 @@ class TestFunctional(unittest.TestCase):
         func  = IONS.ComputeEnergyDensityPotential(rho=mol.field)
         a = func.potential
         b = ion_pp.field 
-        self.assertTrue(np.isclose(a,b)).all()
+        # self.assertTrue(np.isclose(a,b)).all()
+        self.assertTrue(np.allclose(a,b, atol = 1.E-2))
 
 

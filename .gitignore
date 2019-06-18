@@ -6,3 +6,4 @@ __pycache__/
 tests/test.xsf
 dist/
 build/
+.pytest_cache/
