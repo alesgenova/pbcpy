@@ -168,7 +168,7 @@ class ewald(object):
         if (self.verbose):
             print("Ewald sum & divergent terms in the Energy:")
             print("eta used = ", eta)
-            print("precision used = ", precision)
+            print("precision used = ", self.precision)
             print("Ewald Energy = ", Ewald_Energy)
         return Ewald_Energy
 
