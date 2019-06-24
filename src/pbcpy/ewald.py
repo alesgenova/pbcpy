@@ -41,8 +41,6 @@ class ewald(object):
 
         gmax = self.Get_Gmax(self.rho.grid)
         eta = self.Get_Best_eta(self.precision, gmax, self.ions)
-        # eta = 0.8041390086978455
-        # eta = 0.6767582430182426
         self.eta = eta
 
             
