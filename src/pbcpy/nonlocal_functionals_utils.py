@@ -1,6 +1,11 @@
 import numpy as np
 import scipy.special as sp
+from .functional_output import Functional
+from .local_functionals_utils import vonWeizsackerEnergy, vonWeizsackerPotential
+from .local_functionals_utils import ThomasFermiEnergy, ThomasFermiPotential
 
+
+cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
 
 def LindhardFunction(eta,lbda,mu):
     '''
@@ -94,17 +99,43 @@ def MGP_kernel(q,rho0,LumpFactor,MaxPoints):
 
 
 
-def WT_kernel(q,rho0):
+def WT_kernel(q,rho0, x = 1.0, y = 1.0, alpha = 5.0/6.0, beta = 5.0/6.0):
         ''' 
         The WT Kernel
         '''
-        cTF = np.pi**2/(3.0 * np.pi**2)**(1.0/3.0) #2.87123400018819
+        # cTF = np.pi**2/(3.0 * np.pi**2)**(1.0/3.0) #2.87123400018819
+
+        factor = 5.0 / (9.0 * alpha * beta * rho0 ** (alpha + beta - 5.0/3.0))
         tkf = 2.0 * (3.0 * rho0 * np.pi**2)**(1.0/3.0)
-                
-        return (1.2*LindhardFunction(q/tkf,1.0,1.0))*cTF
+
+        # return (1.2*LindhardFunction(q/tkf,1.0,1.0))*cTF
+        return LindhardFunction(q/tkf,x,y)*factor
+
+def WTPotential(rho, rho0, Kernel, alpha, beta):
+    pot1 = alpha * rho ** (alpha - 1.0) * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    pot2 = beta * rho ** (beta - 1.0) * ((rho ** alpha).fft() * Kernel).ifft(force_real = True)
+
+    return cTF * (pot1 + pot2)
+
+def WTEnergy(rho, rho0, Kernel, alpha, beta):
+    pot1 = ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+
+    return cTF * (rho ** alpha * pot1)
 
 
+def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0):
+    
+    #Only performed once for each grid
+    gg = rho.grid.get_reciprocal().gg
+    rho0 = np.sum(rho)/np.size(rho)
+    KE_kernel = WT_kernel(np.sqrt(gg),rho0, alpha = alpha, beta = beta)
 
+    pot = y*vonWeizsackerPotential(rho,Sigma)+x*ThomasFermiPotential(rho) + WTPotential(rho, rho0, KE_kernel, alpha, beta)
+    ene = y*vonWeizsackerEnergy(rho)+ThomasFermiEnergy(rho) + WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+    # ene = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+    # pot = WTPotential(rho, rho0, KE_kernel, alpha, beta)
 
-
-
+    OutFunctional = Functional(name='WT')
+    OutFunctional.potential = pot
+    OutFunctional.energydensity = ene
+    return OutFunctional

@@ -9,6 +9,7 @@ from .semilocal_xc import PBE, LDA, XC, KEDF
 from .local_functionals_utils import TF,vW, x_TF_y_vW
 from .local_pseudopotential import NuclearElectron
 from .hartree import HartreeFunctional
+from .nonlocal_functionals_utils import WT
 
 # general python imports
 from abc import ABC, abstractmethod
@@ -153,23 +154,32 @@ class FunctionalClass(AbstractFunctional):
         if self.type == 'KEDF':
             if self.name == 'TF':
                 return TF(rho)
-            if self.name == 'vW':
+            elif self.name == 'vW':
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
                 return vW(rho=rho,Sigma=Sigma)
-            if self.name == 'x_TF_y_vW':
+            elif self.name == 'x_TF_y_vW':
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
                 x = self.optional_kwargs.get('x',1.0)
-                y = self.optional_kwargs.get('x',0.0)
+                y = self.optional_kwargs.get('y',1.0)
                 return x_TF_y_vW(rho=rho,x=x,y=y,Sigma=Sigma)
-            if self.name == 'LC94':
+            elif self.name == 'LC94':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
                 return KEDF(density=rho,polarization=polarization,k_str='gga_k_lc94')
-            if self.name == 'LIBXC_KEDF':
+            elif self.name == 'LIBXC_KEDF':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
                 k_str = optional_kwargs.get('k_str','gga_k_lc94')
                 return KEDF(density=rho,polarization=polarization,k_str=k_str)
-            if self.is_nonlocal == True:
-                raise Exception('Nonlocal KEDF to be implemented')
+            elif self.name == 'WT':
+                Sigma = self.optional_kwargs.get('Sigma',0.025)
+                x = self.optional_kwargs.get('x',1.0)
+                y = self.optional_kwargs.get('y',1.0)
+                alpha = self.optional_kwargs.get('alpha',5.0/6.0)
+                beta = self.optional_kwargs.get('beta',5.0/6.0)
+                return WT(rho=rho,x=x,y=y,Sigma=Sigma, alpha=alpha, beta=beta)
+            else :
+                raise Exception(self.name + ' KEDF to be implemented')
+            # if self.is_nonlocal == True:
+                # raise Exception('Nonlocal KEDF to be implemented')
         if self.type == 'XC':
             if self.name == 'LDA':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
