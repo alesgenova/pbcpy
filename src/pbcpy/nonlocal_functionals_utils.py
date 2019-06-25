@@ -61,9 +61,48 @@ def LindhardFunction(eta,lbda,mu):
                                    ))))))))))))))
         return LindG
 
+def LindhardFunction2(eta,lbda,mu):
+    '''
+    (1) for x -> 0.0
+            2      4  
+           x    8⋅x   
+       1 + ── + ──── + ... 
+           3     45   
+    
+    (2)  for x -> 1.0  
+        2 + (1-x)⋅(2⋅log(1-x) - 2⋅log(2)) + ... 
+        We use a magic number 48, because 2.0*(log(1E-10)-log(2))~ -47.4
+       
+    (3) for y -> 0.0, y = 1/x   
+                     2      4          6   
+        3    3   24⋅y    8⋅y    12728⋅y   
+        ── - ─ - ───── - ──── - ──────── -...
+         2   5    175    125     336875   
+        y                                                                                                                                                                  
+        Actually, if not write the multiplication using C++ or Fortran, numpy.log will be faster.
 
+    The Inverse Lindhard Function
+    
+    Attributes
+    ----------
+    eta: numpy array
+    lbda, mu: floats (TF and vW contributions)
+    
+    '''
+    if isinstance(eta, (np.ndarray, np.generic)):
+        LindG  = np.zeros_like(eta)
+        atol = 1.0E-10
 
+        cond0 = np.logical_and(eta > atol, np.abs(eta - 1.0) > atol)
+        cond1 = eta < atol
+        cond2 = np.abs(eta - 1.0) < atol
 
+        LindG[cond0] = 1.0 / (0.5 + 0.25*(1.0-eta[cond0]**2)* 
+                    np.log((1.0 + eta[cond0])/np.abs(1.0-eta[cond0]))/eta[cond0])-3.0 * mu * eta[cond0]**2 - lbda
+
+        LindG[cond1] = 1.0 + eta[cond1]**2 * (1.0 / 3.0 - 3.0 * mu) - lbda
+        LindG[cond2] = 2.0 - 48 * np.abs(eta[cond2] - 1.0) - 3.0 * mu * eta[cond2] ** 2 - lbda
+        return LindG
 
 
 def MGP_kernel(q,rho0,LumpFactor,MaxPoints):
@@ -109,7 +148,8 @@ def WT_kernel(q,rho0, x = 1.0, y = 1.0, alpha = 5.0/6.0, beta = 5.0/6.0):
         tkf = 2.0 * (3.0 * rho0 * np.pi**2)**(1.0/3.0)
 
         # return (1.2*LindhardFunction(q/tkf,1.0,1.0))*cTF
-        return LindhardFunction(q/tkf,x,y)*factor
+        # return LindhardFunction(q/tkf,x,y)*factor
+        return LindhardFunction2(q/tkf,x,y)*factor
 
 def WTPotential(rho, rho0, Kernel, alpha, beta):
     pot1 = alpha * rho ** (alpha - 1.0) * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
