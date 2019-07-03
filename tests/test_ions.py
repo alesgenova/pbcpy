@@ -52,3 +52,22 @@ class TestFunctional(unittest.TestCase):
                     b = float(line.split()[-1])
                     break
         self.assertTrue(np.isclose(a * Hartree2eV,b, atol = 1.E-4))
+
+    def test_ewald_PME(self):
+        print()
+        print("*"*50)
+        print("Testing particle mesh Ewald method")
+        path_pp='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
+        path_rho='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/rho/'
+        path_ion='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/pot_ion/'
+        file2='As_lda.oe04.recpot'
+        file1='Ga_lda.oe04.recpot'
+        rhofile='GaAs_rho_test_1.pp'
+        ionfile='GaAs_ion_test_1.pp'
+        mol = PP(filepp=path_rho+rhofile).read()
+        Ewald_ = ewald(rho = mol.field, ions = mol.ions, verbose = False)
+        Ewald_PME = ewald(rho = mol.field, ions = mol.ions, verbose = False, PME = True)
+
+        self.assertTrue(np.allclose(Ewald_.energy, Ewald_PME.energy, atol = 1.E-5))
+        self.assertTrue(np.allclose(Ewald_.forces, Ewald_PME.forces, atol = 1.E-5))
+        self.assertTrue(np.allclose(Ewald_.stress, Ewald_PME.stress, atol = 1.E-5))
