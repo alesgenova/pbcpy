@@ -165,7 +165,7 @@ class DirectField(BaseField):
         return DirectField(self.grid, rank=1, griddata_3d=griddata_3d)
 
 
-    def _core_fft(signal):
+    def _core_fft(self,signal):
         sess = tf.InteractiveSession()
         #a = np.fft.fftn(signal)
         b = tf.convert_to_tensor(signal)
