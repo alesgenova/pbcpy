@@ -169,7 +169,7 @@ class DirectField(BaseField):
         sess = tf.InteractiveSession()
         #a = np.fft.fftn(signal)
         b = tf.convert_to_tensor(signal)
-        c = tf.fft3d(b)
+        c = tf.rfft3d(b)
         a = c.eval() 
         return a 
 
