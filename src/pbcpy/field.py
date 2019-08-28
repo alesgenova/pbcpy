@@ -166,10 +166,9 @@ class DirectField(BaseField):
 
 
     def _core_fft(self,signal):
-        sess = tf.InteractiveSession()
-        #a = np.fft.fftn(signal)
-        b = tf.convert_to_tensor(signal,dtype=tf.float64)
-        c = tf.signal.rfft3d(b)
+        a = np.fft.fftn(signal)
+        b = tf.convert_to_tensor(signal,dtype=tf.complex64)
+        c = tf.signal.fft3d(b)
         a = c.eval() 
         return a 
 
