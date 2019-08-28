@@ -1,5 +1,6 @@
 import warnings
 import numpy as np
+import tensorflow as tf
 from scipy import ndimage
 from .grid import DirectGrid, ReciprocalGrid
 from .constants import LEN_CONV
@@ -163,6 +164,16 @@ class DirectField(BaseField):
         griddata_3d = np.einsum("ijkl,ijkl->ijk", gradrho, gradrho)
         return DirectField(self.grid, rank=1, griddata_3d=griddata_3d)
 
+
+    def _core_fft(signal):
+        sess = tf.InteractiveSession()
+        #a = np.fft.fftn(signal)
+        b = tf.convert_to_tensor(signal)
+        c = tf.fft.fftn(b)
+        a = c.eval() 
+        return a 
+
+
     def fft(self):
         ''' Implements the Discrete Fourier Transform
         - Standard FFTs -
@@ -173,7 +184,7 @@ class DirectField(BaseField):
         nr = *self.grid.nr, self.rank
         griddata_3d = np.zeros(nr, dtype=complex)
         for i in range(self.rank):
-            griddata_3d[...,i] = np.fft.fftn(self[...,i])*self.grid.dV
+            griddata_3d[...,i] = self._core_fft(self[...,i])*self.grid.dV
         return ReciprocalField(grid=reciprocal_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
 
     def get_value_at_points(self, points):
