@@ -11,8 +11,8 @@ from pbcpy.field import DirectField, ReciprocalField
 
 class TestFunctional(unittest.TestCase):
     def test_optim(self):
-        path_pp='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
-        path_rho='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/rho/'
+        path_pp='./Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
+        path_rho='./Benchmarks_TOTAL_ENERGY/GaAs_test/rho/'
         file1='Ga_lda.oe04.recpot'
         file2='As_lda.oe04.recpot'
         rhofile='GaAs_rho_test_1.pp'
@@ -59,3 +59,6 @@ class TestFunctional(unittest.TestCase):
         print('Energy New', Enew)
         print('Energy Ref', Eref)
         self.assertTrue(np.isclose(Enew, Eref,  rtol = 1.E-4))
+
+if __name__ == "__main__":
+    unittest.main()
