@@ -30,16 +30,24 @@ class BaseField(np.ndarray):
         # Input array is an already formed ndarray instance
         # We first cast to be our class type
 
-        rank = 1
-        nr = *grid.nr, rank
-        if griddata_3d is not None:
-           a=np.shape(np.shape(griddata_3d))[0] 
-           if a == 4:
-               rank = np.shape(griddata_3d)[3]
-               nr = *grid.nr, rank
+        #rank = 1
+        #nr = *grid.nr, rank
+        #if griddata_3d is not None:
+        #    a=np.shape(np.shape(griddata_3d))[0]
+        #    if a == 4:
+        #        rank = np.shape(griddata_3d)[3]
+        #        nr = *grid.nr, rank
            #elif a == 3:
            #    rank = 1 
            #    nr = grid.nr
+
+        if rank is None:
+            rank = 1
+            if griddata_3d is not None:
+               a=np.shape(np.shape(griddata_3d))[0] 
+               if a == 4:
+                   rank = np.shape(griddata_3d)[3]
+        nr = *grid.nr, rank
 
 
         if griddata_F is None and griddata_C is None and griddata_3d is None:
@@ -90,8 +98,22 @@ class BaseField(np.ndarray):
 
     def integral(self):
         ''' Returns the integral of self '''
-        return np.einsum('ijkl->',self)*self.grid.dV
+        if self.rank == 1:
+            return np.einsum('ijkl->',self)*self.grid.dV
+        else:
+            return np.einsum('ijkl->l',self)*self.grid.dV
         #return float(np.sum(self))*self.grid.dV
+
+    def dot(self, obj):
+        ''' Returns the dot product of vector fields self and obj '''
+        if np.shape(self) != np.shape(obj):
+            raise ValueError('Shape incompatant') # to be specified
+
+        prod = np.einsum('ijkl,ijkl->ijk', self, obj)
+        prod = np.expand_dims(prod, axis = 3)
+
+        return type(self)(self.grid, rank=1, griddata_3d=prod)
+
 
 
 class DirectField(BaseField):
@@ -184,7 +206,11 @@ class DirectField(BaseField):
         elif flag is 'supersmooth':
             return self.super_smooth_gradient()
 
-
+    def laplacian(self, check_real = False, force_real = False, Sigma = 0.025):
+        self_fft = self.fft()
+        gg = self_fft.grid.gg
+        self_fft = -gg*self_fft*np.exp(-gg*(Sigma)**2/4.0)
+        return self_fft.ifft(check_real = check_real, force_real = force_real)
 
     def sigma(self):
         """
