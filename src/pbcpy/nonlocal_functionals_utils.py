@@ -1,11 +1,13 @@
 import numpy as np
 import scipy.special as sp
 from .functional_output import Functional
-from .local_functionals_utils import vonWeizsackerEnergy, vonWeizsackerPotential
-from .local_functionals_utils import ThomasFermiEnergy, ThomasFermiPotential
+# from .local_functionals_utils import vonWeizsackerEnergy, vonWeizsackerPotential
+# from .local_functionals_utils import ThomasFermiEnergy, ThomasFermiPotential
+from .local_functionals_utils import TF, vW
 
 
 cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
+KE_kernel_rho0 =[[], -1]
 
 def LindhardFunction(eta,lbda,mu):
     '''
@@ -61,6 +63,7 @@ def LindhardFunction(eta,lbda,mu):
                                    ))))))))))))))
         return LindG
 
+
 def LindhardFunction2(eta,lbda,mu):
     '''
     (1) for x -> 0.0
@@ -103,6 +106,22 @@ def LindhardFunction2(eta,lbda,mu):
         LindG[cond1] = 1.0 + eta[cond1]**2 * (1.0 / 3.0 - 3.0 * mu) - lbda
         LindG[cond2] = 2.0 - 48 * np.abs(eta[cond2] - 1.0) - 3.0 * mu * eta[cond2] ** 2 - lbda
         return LindG
+
+def LindhardDerivative(eta, mu):
+    LindDeriv  = np.zeros_like(eta)
+    atol = 1.0E-10
+    cond0 = np.logical_and(eta > atol, np.abs(eta - 1.0) > atol)
+    cond1 = eta < atol
+    cond2 = np.abs(eta - 1.0) < atol
+
+    TempA = np.log(np.abs((1.0+eta[cond0])/(1.0-eta[cond0])))
+    LindDeriv[cond0] = ( 0.5/eta - 0.25 * (eta[cond0] ** 2 + 1.0)/eta[cond0] ** 2 * TempA) \
+            / (0.5+0.25 * (1 - eta[cond0] ** 2)/eta[cond0] * TempA) ** 2  + \
+            6.0 * eta[cond0] * mu
+    LindDeriv[cond1] = 2.0 * eta * (1.0/3.0 - 3.0 * mu)
+    LindDeriv[cond2] = -48
+
+    return LindDeriv * eta
 
 
 def MGP_kernel(q,rho0,LumpFactor,MaxPoints):
@@ -159,23 +178,70 @@ def WTPotential(rho, rho0, Kernel, alpha, beta):
 
 def WTEnergy(rho, rho0, Kernel, alpha, beta):
     pot1 = ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    pot1 = cTF * (rho ** alpha * pot1)
+    ene = np.einsum('ijkl->', pot1) * rho.grid.dV
 
-    return cTF * (rho ** alpha * pot1)
+    return ene
 
+def WTStress(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, EnergyPotential=None):
 
-def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0):
+    rho0 = np.sum(rho)/np.size(rho)
+    g = rho.grid.get_reciprocal().g
+    gg = rho.grid.get_reciprocal().gg
+    q = np.sqrt(gg)
+    factor = 5.0 / (9.0 * alpha * beta * rho0 ** (alpha + beta - 5.0/3.0))
+    tkf = 2.0 * (3.0 * rho0 * np.pi**2)**(1.0/3.0)
+
+    rhoG_A = (rho ** alpha).fft()
+    rhoG_B = np.conjugate((rho ** beta).fft())
+    DDrho = LindhardDerivative(q/tkf, y) * rhoG_A * rhoG_B
+    stress = np.zeros((3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            if i == j :
+                fac = 1.0/3.0
+            else :
+                fac = 0.0
+            den = DDrho * (g[:, :, :, i] * g[:, :, :, j])/gg - fac
+            stress[i, j] = np.einsum('ijkl->', den)
+    stress *= np.pi ** 2 /(alpha*beta*rho0**(alpha+beta-2)*tkf)
+
+    return stress
+
+            
+
+def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, calcType='Both'):
     
+    global KE_kernel_rho0
     #Only performed once for each grid
     gg = rho.grid.get_reciprocal().gg
     rho0 = np.sum(rho)/np.size(rho)
-    KE_kernel = WT_kernel(np.sqrt(gg),rho0, alpha = alpha, beta = beta)
+    # print('DiffRho0', KE_kernel_rho0[1], abs(KE_kernel_rho0[1]-rho0) ,abs(KE_kernel_rho0[1]-rho0) > 1E-7 )
+    if abs(KE_kernel_rho0[1]-rho0) > 1E-6 :
+        print('Re-calculate KE_kernel')
+        KE_kernel_rho0 = []
+        KE_kernel = WT_kernel(np.sqrt(gg),rho0, alpha = alpha, beta = beta)
+        KE_kernel_rho0.append(KE_kernel)
+        KE_kernel_rho0.append(rho0)
+    else :
+        KE_kernel = KE_kernel_rho0[0]
 
-    pot = y*vonWeizsackerPotential(rho,Sigma)+x*ThomasFermiPotential(rho) + WTPotential(rho, rho0, KE_kernel, alpha, beta)
-    ene = y*vonWeizsackerEnergy(rho)+ThomasFermiEnergy(rho) + WTEnergy(rho, rho0, KE_kernel, alpha, beta)
-    # ene = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
-    # pot = WTPotential(rho, rho0, KE_kernel, alpha, beta)
+
+    ene = pot = 0
+    if calcType == 'Energy' :
+        ene = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+    elif calcType == 'Potential' :
+        pot = WTPotential(rho, rho0, KE_kernel, alpha, beta)
+    else :
+        pot = WTPotential(rho, rho0, KE_kernel, alpha, beta)
+        ene = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+    # TF_VW = x_TF_y_vW(rho,x=x,y=y,Sigma=Sigma, calcType = calcType)
+    xTF = TF(rho, calcType)
+    yvW = vW(rho, Sigma, calcType)
+    pot += x * xTF.potential + y * yvW.potential
+    ene += x * xTF.energy + y * yvW.energy
 
     OutFunctional = Functional(name='WT')
     OutFunctional.potential = pot
-    OutFunctional.energydensity = ene
+    OutFunctional.energy= ene
     return OutFunctional

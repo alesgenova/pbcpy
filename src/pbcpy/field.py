@@ -2,8 +2,8 @@ import warnings
 import numpy as np
 from scipy import ndimage
 from .grid import DirectGrid, ReciprocalGrid
-from .constants import LEN_CONV
-
+from .constants import LEN_CONV, FFTLIB
+from .math_utils import PYfft, PYifft
 
 class BaseField(np.ndarray):
     '''
@@ -124,6 +124,8 @@ class DirectField(BaseField):
             raise TypeError("the grid argument is not an instance of DirectGrid")
         obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
         obj.spl_coeffs = None
+        if FFTLIB == 'pyfftw' :
+            cls.fft_object = PYfft(grid)
         return obj
 
     def __array_finalize__(self, obj):
@@ -242,8 +244,12 @@ class DirectField(BaseField):
         reciprocal_grid = self.grid.get_reciprocal()
         griddata_3d = np.zeros(nr, dtype=complex)
         for i in range(self.rank):
-            #print("BLEAH! = ",np.shape(np.fft.fftn(self[:,:,:,i])))
-            griddata_3d[:,:,:,i] = np.fft.fftn(self[:,:,:,i])*self.grid.dV
+            if FFTLIB == 'pyfftw' :
+                cA = self.fft_object(self[...,i])*self.grid.dV
+                griddata_3d[:,:,:np.shape(cA)[2],i] = cA
+            else :
+                griddata_3d[:,:,:,i] = np.fft.fftn(self[:,:,:,i])*self.grid.dV
+        # np.savetxt('2.dat',griddata_3d.ravel(),fmt = '%.8e',  delimiter = ' ',  newline = '\n')
         return ReciprocalField(grid=reciprocal_grid, memo=self.memo, rank=self.rank, griddata_3d=griddata_3d)
 
     def get_value_at_points(self, points):
@@ -423,6 +429,8 @@ class ReciprocalField(BaseField):
             raise TypeError("the grid argument is not an instance of ReciprocalGrid")
         obj = super().__new__(cls, grid, memo="", rank=rank, griddata_F=griddata_F, griddata_C=griddata_C, griddata_3d=griddata_3d)
         obj.spl_coeffs = None
+        if FFTLIB == 'pyfftw' :
+            cls.ifft_object = PYifft(grid)
         return obj
 
     def __array_finalize__(self, obj):
@@ -442,7 +450,11 @@ class ReciprocalField(BaseField):
         nr = *self.grid.nr, self.rank
         griddata_3d = np.zeros(nr, dtype=complex)
         for i in range(self.rank):
-            griddata_3d[...,i] = np.fft.ifftn(self[...,i])/direct_grid.dV
+            if FFTLIB == 'pyfftw' :
+                rA = self.ifft_object(self[:,:, :np.shape(self)[2]//2+1,i])/direct_grid.dV
+                griddata_3d[:,:,:,i] = rA
+            else :
+                griddata_3d[...,i] = np.fft.ifftn(self[...,i])/direct_grid.dV
         if check_real:
             if np.isclose(np.imag(griddata_3d),0.,atol=1.e-16).all():
                 griddata_3d = np.real(griddata_3d)

@@ -14,8 +14,8 @@ class Functional(object):
     name: string
         The (optional) name of the functional
 
-    energydensity: DirectField
-        The energy density 
+    energy: float
+        The energy
 
     potential: DirectField
         The first functional derivative of the functional wrt 
@@ -27,31 +27,28 @@ class Functional(object):
     '''
 
 
-    def __init__(self, name=None, energydensity=None, potential=None, kernel=None):
+    def __init__(self, name=None, energy=None, potential=None, kernel=None):
         
         if name is not None:
             self.name = name
         else:
             raise AttributeError('Functional name must be specified')
         
-        if energydensity is not None:
-            if isinstance(energydensity, DirectField):
-                self.energydensity = energydensity
-            else:
-                print('Cazzarola!')
+        if energy is not None:
+            self.energy= energy
         if potential is not None:
-            if isinstance(potential, DirectField):
-                self.potential = potential
+            # if isinstance(potential, DirectField):
+            self.potential = potential
         if kernel is not None:
             if isinstance(kernel, (np.ndarray)):
                 self.kernel = kernel
 
 
     def sum(self,other):
-        energydensity = self.energydensity+other.energydensity
+        energy = self.energy+other.energy
         potential = self.potential+other.potential
         name = self.name + other.name
-        return Functional(name=name,energydensity=energydensity,potential=potential)
+        return Functional(name=name,energy=energy,potential=potential)
     
     def __add__(self,other):
         return self.sum(other)

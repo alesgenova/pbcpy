@@ -7,4 +7,5 @@ class System(object):
         self.cell = cell
         self.name = name
         self.field = field
-        self.natoms = np.shape(ions)[0]
+        # self.natoms = np.shape(ions)[0]
+        self.natoms = np.shape(ions.pos)[0]

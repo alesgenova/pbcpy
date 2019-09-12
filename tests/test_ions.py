@@ -21,11 +21,11 @@ class TestFunctional(unittest.TestCase):
         ionfile='GaAs_ion_test_1.pp'
         mol = PP(filepp=path_rho+rhofile).read()
         optional_kwargs = {}
-        optional_kwargs["PP_list"] = [path_pp+file1,path_pp+file1,path_pp+file1,path_pp+file1,path_pp+file1,path_pp+file2,path_pp+file2,path_pp+file2,path_pp+file2,path_pp+file2]
+        optional_kwargs["PP_list"] = {'Ga': path_pp+file1,'As': path_pp+file2}
         optional_kwargs["ions"]    = mol.ions 
         IONS = FunctionalClass(type='IONS', optional_kwargs=optional_kwargs)
         ion_pp = PP(filepp=path_ion+ionfile).read()
-        func  = IONS.ComputeEnergyDensityPotential(rho=mol.field)
+        func  = IONS.ComputeEnergyPotential(rho=mol.field)
         a = func.potential
         b = ion_pp.field 
         self.assertTrue(np.isclose(a,b, atol = 1.E-2).all())

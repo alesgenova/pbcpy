@@ -17,7 +17,7 @@ class TestQEPP(unittest.TestCase):
         print("Testing format.xsf.XSF write()")
         nr = [50,60,70]
         grid = make_orthorombic_cell(10,12,14,nr=nr,CellClass=DirectGrid)
-        ions = [Atom(label="Ne", pos=[0,0,0], cell=grid)]
+        ions = Atom(label=["Ne"], pos=[[0,0,0]], cell=grid)
         griddata_3d = np.random.random(nr)
         field = DirectField(grid=grid, griddata_3d=griddata_3d)
         system = System(ions=ions, cell=grid, field=field)

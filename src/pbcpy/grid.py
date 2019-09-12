@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import ndimage
 from .base import BaseCell, DirectCell, ReciprocalCell, Coord, s2r
-from .constants import LEN_CONV
+from .constants import LEN_CONV, FFTLIB
 
 class BaseGrid(BaseCell):
 
@@ -75,6 +75,7 @@ class DirectGrid(BaseGrid,DirectCell):
         super().__init__(lattice=lattice, nr=nr, origin=origin, units=units, **kwargs)
         self._r = None
         self._s = None
+        self.RPgrid = None
 
     def _calc_grid_crys_points(self):
         if self._s is None:
@@ -121,18 +122,19 @@ class DirectGrid(BaseGrid,DirectCell):
             Note2: We have to use 'Bohr' units to avoid changing hbar value
         """
         # TODO define in constants module hbar value for all units allowed
-        scale = np.array(scale)
-        fac = 1.0
-        if convention == 'physics' or convention == 'p':
+        if self.RPgrid is None :
+            scale = np.array(scale)
+            fac = 1.0
+            if convention == 'physics' or convention == 'p':
+                fac = 2*np.pi
             fac = 2*np.pi
-        fac = 2*np.pi
-        bg = fac*np.linalg.inv(self.lattice)
-        bg = bg.T
-        #bg = bg/LEN_CONV["Bohr"][self.units]
-        reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
+            bg = fac*np.linalg.inv(self.lattice)
+            bg = bg.T
+            #bg = bg/LEN_CONV["Bohr"][self.units]
+            reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
 
-        return ReciprocalGrid(lattice=reciprocal_lat,nr=self.nr,units=self.units)
-
+            self.RPgrid = ReciprocalGrid(lattice=reciprocal_lat,nr=self.nr,units=self.units)
+        return self.RPgrid
 
 class ReciprocalGrid(BaseGrid, ReciprocalCell):
     """
@@ -161,6 +163,9 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
         super().__init__(lattice=lattice, nr=nr, origin=np.array([0.,0.,0.]), units=units, **kwargs)
         self._g = None
         self._gg = None
+        self.Dgrid = None
+        self._q = None
+        self._mask = None
 
     def _calc_grid_points(self):
         if self._g is None:
@@ -206,6 +211,38 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
             self._gg = np.reshape(gg,[self.nr[0],self.nr[1],self.nr[2],1])
         return self._gg
 
+    @property
+    def mask(self):
+        if self._mask is None:
+            nr = self.nr[:3]
+            Dnr = nr[:3]//2
+            Dmod = nr[:3]%2
+            mask = np.ones((nr[0], nr[1], nr[2]), dtype = bool)
+            mask[:, :, Dnr[2]+1:] = False
+
+            mask[0, 0, 0] = False
+            mask[0, Dnr[1]+1:, 0] = False
+            mask[Dnr[0]+1:, :, 0] = False
+            if Dmod[2] == 0 :
+                mask[0, 0, Dnr[2]] = False
+                mask[0, Dnr[1]+1:, Dnr[2]] = False
+                mask[Dnr[0]+1:, :, Dnr[2]] = False
+                if Dmod[1] == 0 :
+                    mask[0, Dnr[1], Dnr[2]] = False
+                if Dmod[0] == 0 :
+                    mask[Dnr[0], 0, Dnr[2]] = False
+                    mask[Dnr[0], Dnr[1]+1:, Dnr[2]] = False
+            if Dmod[0] == 0 :
+                mask[Dnr[0], Dnr[1]+1:, 0] = False
+                if Dmod[1] == 0 :
+                    mask[Dnr[0], Dnr[1], 0] = False
+            if Dmod[1] == 0 :
+                mask[0, Dnr[1], 0] = False
+            if all(Dmod == 0):
+                mask[Dnr[0], Dnr[1], Dnr[2]] = False
+            self._mask = mask
+        return self._mask
+
     def get_direct(self,scale=[1.,1.,1.],convention='physics'):
         """
             Returns a new DirectCell, the direct cell of self
@@ -223,12 +260,13 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
             Note2: We have to use 'Bohr' units to avoid changing hbar value
         """
         # TODO define in constants module hbar value for all units allowed
-        scale = np.array(scale)
-        fac = 1.0
-        if convention == 'physics' or convention == 'p':
-            fac = 1./(2*np.pi)
-        at = np.linalg.inv(self.lattice.T*fac)
-        #at = at*LEN_CONV["Bohr"][self.units]
-        direct_lat = np.einsum('ij,j->ij',at,1./scale)
-        
-        return DirectGrid(lattice=direct_lat,nr=self.nr,units=self.units)
+        if self.Dgrid is None :
+            scale = np.array(scale)
+            fac = 1.0
+            if convention == 'physics' or convention == 'p':
+                fac = 1./(2*np.pi)
+            at = np.linalg.inv(self.lattice.T*fac)
+            #at = at*LEN_CONV["Bohr"][self.units]
+            direct_lat = np.einsum('ij,j->ij',at,1./scale)
+            self.Dgrid=DirectGrid(lattice=direct_lat,nr=self.nr,units=self.units)
+        return self.Dgrid

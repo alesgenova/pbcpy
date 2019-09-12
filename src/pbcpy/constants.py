@@ -1,3 +1,14 @@
+
+FFTLIB = 'numpy'
+try:
+    import pyfftw
+    FFTLIB = 'pyfftw'
+except :
+    FFTLIB = 'numpy'
+FFTLIB = 'numpy'
+
+print('Use %s for Fourier Transform' %(FFTLIB))
+
 LEN_UNITS = ['Bohr', 'Angstrom', 'nm', 'm']
 
 LEN_CONV = {}

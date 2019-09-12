@@ -51,10 +51,11 @@ class XSF(object):
 
     def _write_coord(self, fileout, ions):
         mywrite(fileout, "PRIMCOORD", True)
-        mywrite(fileout, (len(ions), 1), True)
-        for iat, atom in enumerate(ions):
-            #mywrite(fileout, (atom.label, atom.pos.conv(self.xsf_units)), True)
-            mywrite(fileout, (atom.label, atom.pos*LEN_CONV["Bohr"][self.xsf_units]), True)
+        mywrite(fileout, (len(ions.pos), 1), True)
+        for i in range(len(ions.pos)):
+            mywrite(fileout, (ions.labels[i], ions.pos[i]*LEN_CONV["Bohr"][self.xsf_units]), True)
+        # for iat, atom in enumerate(ions):
+            # mywrite(fileout, (atom.label, atom.pos*LEN_CONV["Bohr"][self.xsf_units]), True)
 
     def _write_datagrid(self, fileout, plot):
         ndim = plot.span # 2D or 3D grid?

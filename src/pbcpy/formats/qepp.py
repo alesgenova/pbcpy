@@ -57,24 +57,31 @@ class PP(object):
             # ntyp
             atm = []
             zv = np.empty(ntyp, dtype=float)
+            Zval = {}
             for ity in range(ntyp):
                 linesplt = filepp.readline().split()
                 atm.append(linesplt[1])
                 zv[ity] = float(linesplt[2])
+                Zval[linesplt[1]] = float(linesplt[2])
             # tau
             # tau = np.zeros((nat,3), dtype=float)
             # tau = np.zeros(3, dtype=float)
             # ityp = np.zeros(nat, dtype=int)
-            atoms = []
+            label = []
+            pos = []
             for iat in range(nat):
                 linesplt = filepp.readline().split()
                 # tau[iat,:] = np.asarray(linesplt[1:4],dtype=float)
                 # ityp[iat] = int(linesplt[4]) -1
                 tau = np.asarray(linesplt[1:4], dtype=float)
                 ity = int(linesplt[4]) - 1
-                atoms.append(Atom(Zval=zv[ity], label=atm[
-                             ity], pos=tau, cell=grid, basis = 'Crystal'))
+                label.append(atm[ity])
+                pos.append(tau)
+                # atoms.append(Atom(Zval=zv[ity], label=atm[
+                             # ity], pos=tau, cell=grid, basis = 'Crystal'))
                              # ity], pos=tau * celldm[0], cell=grid))
+            atoms = Atom(Zval=Zval, label=label, \
+                         pos=pos, cell=grid, basis = 'Crystal')
 
             # self.atoms = Ions( nat, ntyp, atm, zv, tau*celldm[0], ityp, self.grid)
 

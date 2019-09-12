@@ -29,7 +29,7 @@ class AbstractFunctional(ABC):
         pass
     
     @abstractmethod
-    def ComputeEnergyDensityPotential(self,rho,**kwargs):
+    def ComputeEnergyPotential(self,rho,**kwargs):
         # returns edens and pot
         pass
 
@@ -82,12 +82,12 @@ class FunctionalClass(AbstractFunctional):
     -------
      XC = FunctionalClass(type='XC',name='LDA')
      outXC = XC(rho)
-     outXC.energydensity --> the edens
+     outXC.energy --> the energy
      outXC.potential     --> the pot
     '''
 
 
-    def __call__(self,rho):
+    def __call__(self,rho, calcType = 'Both'):
         '''
         Functional class is callable
 
@@ -101,7 +101,7 @@ class FunctionalClass(AbstractFunctional):
           Functional: functional output handler
              The output is a Functional class
         '''
-        return self.ComputeEnergyDensityPotential(rho)
+        return self.ComputeEnergyPotential(rho, calcType)
     
     def __init__(self,type=None,name=None,is_nonlocal=None,optional_kwargs=None):
         #init the class
@@ -150,32 +150,32 @@ class FunctionalClass(AbstractFunctional):
         if not self.CheckFunctional():
             raise Exception ('Functional check failed') 
     
-    def ComputeEnergyDensityPotential(self,rho):
+    def ComputeEnergyPotential(self,rho, calcType = 'Both'):
         if self.type == 'KEDF':
             if self.name == 'TF':
                 return TF(rho)
             elif self.name == 'vW':
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
-                return vW(rho=rho,Sigma=Sigma)
+                return vW(rho=rho,Sigma=Sigma, calcType=calcType)
             elif self.name == 'x_TF_y_vW':
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
                 x = self.optional_kwargs.get('x',1.0)
                 y = self.optional_kwargs.get('y',1.0)
-                return x_TF_y_vW(rho=rho,x=x,y=y,Sigma=Sigma)
+                return x_TF_y_vW(rho,x=x,y=y,Sigma=Sigma, calcType=calcType)
             elif self.name == 'LC94':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
-                return KEDF(density=rho,polarization=polarization,k_str='gga_k_lc94')
+                return KEDF(rho,polarization=polarization,k_str='gga_k_lc94', calcType=calcType)
             elif self.name == 'LIBXC_KEDF':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
                 k_str = optional_kwargs.get('k_str','gga_k_lc94')
-                return KEDF(density=rho,polarization=polarization,k_str=k_str)
+                return KEDF(rho,polarization=polarization,k_str=k_str, calcType=calcType)
             elif self.name == 'WT':
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
                 x = self.optional_kwargs.get('x',1.0)
                 y = self.optional_kwargs.get('y',1.0)
                 alpha = self.optional_kwargs.get('alpha',5.0/6.0)
                 beta = self.optional_kwargs.get('beta',5.0/6.0)
-                return WT(rho=rho,x=x,y=y,Sigma=Sigma, alpha=alpha, beta=beta)
+                return WT(rho=rho,x=x,y=y,Sigma=Sigma, alpha=alpha, beta=beta, calcType=calcType)
             else :
                 raise Exception(self.name + ' KEDF to be implemented')
             # if self.is_nonlocal == True:
@@ -183,21 +183,21 @@ class FunctionalClass(AbstractFunctional):
         if self.type == 'XC':
             if self.name == 'LDA':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
-                return LDA(density=rho,polarization=polarization)
+                return LDA(rho,polarization=polarization, calcType=calcType)
             if self.name == 'PBE':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
-                return PBE(density=rho,polarization=polarization)
+                return PBE(density=rho,polarization=polarization, calcType=calcType)
             if self.name == 'LIBXC_XC':
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
                 x_str = self.optional_kwargs.get('x_str','gga_x_pbe')
                 c_str = self.optional_kwargs.get('c_str','gga_c_pbe')
-                return XC(density=rho,x_str=x_str,c_str=c_str,polarization=polarization)
+                return XC(density=rho,x_str=x_str,c_str=c_str,polarization=polarization, calcType=calcType)
         if self.type == 'HARTREE':
-            return HartreeFunctional(density=rho)
+            return HartreeFunctional(density=rho, calcType=calcType)
         if self.type == 'IONS':
             PP_list = self.optional_kwargs.get('PP_list')
             ions = self.optional_kwargs.get('ions')
-            return NuclearElectron(density=rho,ions=ions,PPs=PP_list)
+            return NuclearElectron(density=rho,ions=ions,PPs=PP_list, calcType=calcType)
 
 
 
@@ -227,8 +227,7 @@ class TotalEnergyAndPotential(object):
      E = EnergyEvaluator.Energy(rho,ions)
      
      [total energy and potential:]
-     out = EnergyEvaluator.ComputeEnergyDensityPotential(rho)
-     edens = out.energydensity ...
+     out = EnergyEvaluator.ComputeEnergyPotential(rho)
 
      [time for optimization of density:]
      in_for_scipy_minimize = EnergyEvaluator(phi)
@@ -282,22 +281,45 @@ class TotalEnergyAndPotential(object):
         rho_ = phi_*phi_
         N_=rho_.integral()
         rho_ *= self.N/N_
-        func = self.ComputeEnergyDensityPotential(rho_)
-        E=func.energydensity.integral()
+        func = self.ComputeEnergyPotential(rho_)
+        E=func.energy
         int_tem_ = phi_*phi_*func.potential
         other_term_ = - int_tem_.integral() / N_
         final_v_ = ( func.potential + other_term_ ) * 2.0 * phi_  * self.N/N_ * rho_.grid.dV
         return  E , final_v_.ravel()
     
-    def ComputeEnergyDensityPotential(self,rho):
-        return self.KineticEnergyFunctional(rho) + self.XCFunctional(rho) + self.IONS(rho) + self.HARTREE(rho)
+    def ComputeEnergyPotential(self,rho, calcType = 'Both'):
+        import time
+        # t1 = time.time()
+        self.KineticEnergyFunctional(rho,calcType) 
+        # t2 = time.time()
+        # print('KE time', t2 - t1)
+        # self.XCFunctional(rho,calcType) 
+        # t3 = time.time()
+        # print('XC time', t3 - t2)
+        # self.IONS(rho,calcType) 
+        # t4 = time.time()
+        # print('IE time', t4 - t3)
+        # self.HARTREE(rho,calcType)
+        # t5 = time.time()
+        # print('Hart time', t5 - t4)
+        # return self.KineticEnergyFunctional(rho,calcType) + self.XCFunctional(rho,calcType) + self.IONS(rho,calcType) + self.HARTREE(rho,calcType)
+        return self.KineticEnergyFunctional(rho,calcType) + self.XCFunctional(rho,calcType) + self.IONS(rho,calcType) + self.HARTREE(rho,calcType)
 
  
-    def Energy(self,rho,ions):
+    def Energy(self,rho,ions, usePME = False, calcType = 'Energy'):
         from .ewald import ewald
-        ewald_ = ewald(rho=rho,ions=ions)
-        total_edens =  self.KineticEnergyFunctional.ComputeEnergyDensityPotential(rho) + self.XCFunctional.ComputeEnergyDensityPotential(rho)  + self.HARTREE.ComputeEnergyDensityPotential(rho)
-        return ewald_.energy + total_edens.energydensity.integral()
+        ewald_ = ewald(rho=rho,ions=ions, PME = usePME)
+        total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
+                self.XCFunctional.ComputeEnergyPotential(rho,calcType) 
+        total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
+                self.XCFunctional.ComputeEnergyPotential(rho,calcType) + \
+                self.HARTREE.ComputeEnergyPotential(rho,calcType)
+        total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
+                self.XCFunctional.ComputeEnergyPotential(rho,calcType) + \
+                self.HARTREE.ComputeEnergyPotential(rho,calcType) + \
+                self.IONS.ComputeEnergyPotential(rho,calcType)
+        return ewald_.energy + total_e.energy
 
 
 

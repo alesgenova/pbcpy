@@ -15,10 +15,10 @@ class TestFunctional(unittest.TestCase):
         mol = PP(filepp="tests/Al_fde_rho.pp").read()
         rho_r = mol.field
         thefuncclass = FunctionalClass(type='XC',name='LDA',is_nonlocal=False)
-        func2 = thefuncclass.ComputeEnergyDensityPotential(rho=rho_r)
+        func2 = thefuncclass.ComputeEnergyPotential(rho=rho_r)
         func1  = XC(density=rho_r,x_str='lda_x',c_str='lda_c_pz',polarization='unpolarized') 
-        a = func2.energydensity
-        b = func1.energydensity
+        a = func2.energy
+        b = func1.energy
         self.assertTrue(np.isclose(a,b).all())
         # print("Need LibXC Installed - then can run this test")
         # pass
@@ -31,7 +31,7 @@ class TestFunctional(unittest.TestCase):
         rho_r = mol.field
         Functional_LibXC = XC(density=rho_r,x_str='gga_x_pbe',c_str='gga_c_pbe',polarization='unpolarized')
         Functional_LibXC2 = PBE(rho_r,'unpolarized')
-        self.assertTrue(np.isclose(Functional_LibXC2.energydensity,Functional_LibXC.energydensity).all())
+        self.assertTrue(np.isclose(Functional_LibXC2.energy,Functional_LibXC.energy))
         # print("Need LibXC Installed - then can run this test")
         # pass
         
