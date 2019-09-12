@@ -7,7 +7,6 @@ tests/test.xsf
 dist/
 build/
 .pytest_cache/
-notebooks/
 .gitignore
 tests/*.slurm
 tests/*.out
