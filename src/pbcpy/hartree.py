@@ -6,10 +6,14 @@ from .functional_output import Functional
 def HartreeFunctional(density, calcType='Both'):
     gg=density.grid.get_reciprocal().gg
     rho_of_g = density.fft()
-    v_h = rho_of_g.copy()
-    v_h[0,0,0,0] = np.float(0.0)
-    mask = gg != 0
-    v_h[mask] = rho_of_g[mask]*gg[mask]**(-1)*4*np.pi
+    # v_h = rho_of_g.copy()
+    # mask = gg != 0
+    # v_h[mask] = rho_of_g[mask]*gg[mask]**(-1)*4*np.pi
+    v_h = np.zeros_like(rho_of_g)
+    gg[0, 0, 0, 0] = 1.0
+    v_h = rho_of_g/gg*4*np.pi
+    gg[0, 0, 0, 0] = 0.0
+    v_h[0,0,0,0] = 0.0
     v_h_of_r = v_h.ifft(force_real=True)
     if calcType == 'Potential' :
         e_h = 0
@@ -37,15 +41,16 @@ def HartreeFunctionalStress(rho, EnergyPotential=None):
     gg=rho.grid.get_reciprocal().gg
     mask=rho.grid.get_reciprocal().mask
 
-    rhoG = rho.fft() / rho.grid.volume
+    rhoG = rho.fft()
     gg[0, 0, 0, 0] = 1.0
     stress = np.zeros((3, 3))
     rhoG2 = rhoG * np.conjugate(rhoG) / (gg * gg)
+    mask2 = mask[..., np.newaxis]
     for i in range(3):
         for j in range(i, 3):
-            den = (g[:,  :,  :, i]*g[:, :, :, j])[mask] * rhoG2[:, :, :, :][mask[:, :, :, np.newaxis]]
+            den = (g[..., i][mask]*g[..., j][mask]) * rhoG2[mask2]
             Etmp = np.sum(den)
-            stress[i, j] = Etmp.real* 8.0 * np.pi
+            stress[i, j] = Etmp.real* 8.0 * np.pi / rho.grid.volume ** 2
             if i == j :
                 stress[i, j] -= EnergyPotential.energy / rho.grid.volume
     gg[0, 0, 0, 0] = 0

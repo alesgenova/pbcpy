@@ -5,7 +5,7 @@ try:
     FFTLIB = 'pyfftw'
 except :
     FFTLIB = 'numpy'
-FFTLIB = 'numpy'
+# FFTLIB = 'numpy'
 
 print('Use %s for Fourier Transform' %(FFTLIB))
 
@@ -27,6 +27,14 @@ LEN_CONV['nm'] = {
 LEN_CONV['m'] = {
     'Bohr': 1.8897261254535427e10,
     'Angstrom': 1.0e10, 'nm': 1.0e9, 'm': 1.0
+}
+
+ENERGY_CONV = {}
+ENERGY_CONV['eV'] = {
+        'eV': 1.0, 'Hartree' : 0.03674932598150397
+}
+ENERGY_CONV['Hartree'] = {
+        'eV' : 27.2113834279111, 'Hartree': 1.0
 }
 
 units_warning = "Please only feed pbcpy quantities in atomic units (Bohr). An automatic units system might be implemented in the future"

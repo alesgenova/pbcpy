@@ -289,9 +289,9 @@ class TotalEnergyAndPotential(object):
         return  E , final_v_.ravel()
     
     def ComputeEnergyPotential(self,rho, calcType = 'Both'):
-        import time
+        # import time
         # t1 = time.time()
-        self.KineticEnergyFunctional(rho,calcType) 
+        # self.KineticEnergyFunctional(rho,calcType) 
         # t2 = time.time()
         # print('KE time', t2 - t1)
         # self.XCFunctional(rho,calcType) 
@@ -303,18 +303,15 @@ class TotalEnergyAndPotential(object):
         # self.HARTREE(rho,calcType)
         # t5 = time.time()
         # print('Hart time', t5 - t4)
-        # return self.KineticEnergyFunctional(rho,calcType) + self.XCFunctional(rho,calcType) + self.IONS(rho,calcType) + self.HARTREE(rho,calcType)
-        return self.KineticEnergyFunctional(rho,calcType) + self.XCFunctional(rho,calcType) + self.IONS(rho,calcType) + self.HARTREE(rho,calcType)
+        Obj = self.KineticEnergyFunctional(rho,calcType)\
+                + self.XCFunctional(rho,calcType) + \
+                self.IONS(rho,calcType) + self.HARTREE(rho,calcType)
+        return Obj
 
  
     def Energy(self,rho,ions, usePME = False, calcType = 'Energy'):
         from .ewald import ewald
         ewald_ = ewald(rho=rho,ions=ions, PME = usePME)
-        total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
-                self.XCFunctional.ComputeEnergyPotential(rho,calcType) 
-        total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
-                self.XCFunctional.ComputeEnergyPotential(rho,calcType) + \
-                self.HARTREE.ComputeEnergyPotential(rho,calcType)
         total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
                 self.XCFunctional.ComputeEnergyPotential(rho,calcType) + \
                 self.HARTREE.ComputeEnergyPotential(rho,calcType) + \

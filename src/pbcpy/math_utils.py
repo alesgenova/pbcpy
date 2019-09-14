@@ -5,8 +5,8 @@ from .constants import FFTLIB
 import time
 
 # Global variables
-FFT_Grid = []
-IFFT_Grid = []
+FFT_Grid = np.zeros(3)
+IFFT_Grid = np.zeros(3)
 FFT_OBJ = None
 IFFT_OBJ = None
 

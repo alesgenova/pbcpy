@@ -79,7 +79,7 @@ def vonWeizsackerStress(rho, EnergyPotential=None):
     dRho_ij = []
     stress = np.zeros((3, 3))
     for i in range(3):
-        dRho_ij.append((1j * g[:, :, :, i][:, :, :, np.newaxis] * rhoG).ifft())
+        dRho_ij.append((1j * g[..., i][..., np.newaxis] * rhoG).ifft())
     for i in range(3):
         for j in range(i, 3):
             Etmp = -0.25/rho.grid.volume * rho.grid.dV * np.einsum('ijkl -> ', dRho_ij[i] * dRho_ij[j]/rho)

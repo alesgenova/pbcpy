@@ -4,6 +4,7 @@ from scipy.optimize import minimize, line_search
 from scipy.optimize.linesearch import scalar_search_wolfe1
 from .field import DirectField
 from .math_utils import LineSearchDcsrch,LineSearchDcsrch2
+import time
 
 class LBFGS(object):
 
@@ -124,7 +125,7 @@ class Optimization(object):
 
         elif method == 'TN' :
             direction = np.zeros_like(resA[-1])
-            epsi = 1.0E-7
+            epsi = 1.0E-9
             rho = phi ** 2
             if mu is None :
                 func = self.EnergyEvaluator.ComputeEnergyPotential(rho, calcType = 'Potential')
@@ -203,7 +204,6 @@ class Optimization(object):
 
 
     def optimize_rho(self, guess_rho = None):
-        import time
         if guess_rho is None and self.rho is None:
             raise AttributeError('Must provide a guess density')
         else:
@@ -214,7 +214,6 @@ class Optimization(object):
         BeginT = time.time()
         phi = np.sqrt(rho)
         func = self.EnergyEvaluator.ComputeEnergyPotential(rho)
-        print('func time', time.time() - BeginT)
         mu = (func.potential* np.sign(phi)  * rho).integral() / self.EnergyEvaluator.N
         residual = (func.potential* np.sign(phi)  - mu)* phi
         residualA = []
@@ -295,7 +294,10 @@ class Optimization(object):
 
             func0 = EnergyAndDerivative(0.0)
             theta,_, _, task, NumLineSearch =  LineSearchDcsrch2(EnergyAndDerivative, alpha0 = theta,
-                   func0 = func0, c1=1e-4, c2=0.1, amax=np.pi, amin=0.0, xtol=1e-12, maxiter = 100)
+                   func0 = func0, c1=1e-4, c2=0.2, amax=np.pi, amin=0.0, xtol=1e-12, maxiter = 100)
+            if theta is None :
+                print('!!!ERROR : Density Optimization NOT Converged  !!!')
+                break
 
             # print('final theta', theta)
             ### Just for LBFGS 

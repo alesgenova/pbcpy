@@ -443,10 +443,10 @@ class ewald(object):
         k = 0
         for i in range(3):
             for j in range(i, 3):
-                sfactor[:, :, :, k] = reciprocal_grid.g[:, :, :, i] * reciprocal_grid.g[:, :, :, j]
-                sfactor[:, :, :, k] *= 2.0/gg[:, :, :, 0] * (1 + gg[:,  :,  :, 0]/(4.0 * self.eta))
+                sfactor[..., k] = reciprocal_grid.g[..., i] * reciprocal_grid.g[..., j]
+                sfactor[..., k] *= 2.0/gg[..., 0] * (1 + gg[:,  :,  :, 0]/(4.0 * self.eta))
                 if i == j :
-                    sfactor[:, :, :, k] -= 1.0
+                    sfactor[..., k] -= 1.0
                 k += 1
 
         gg[0,0,0,0]=0.0
@@ -504,23 +504,24 @@ class ewald(object):
         # method 1
         strf = QarrayF.fft()
         b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
-        strf *= b123[:, :, :, np.newaxis]
+        strf *= b123[..., np.newaxis]
         strf_sq =np.conjugate(strf)*strf
         # method 2
         # Barray = np.einsum('i, j, k -> ijk', \
                 # bm[0] * np.conjugate(bm[0]), bm[1] * np.conjugate(bm[1]), bm[2] * np.conjugate(bm[2]))
-        # strf_sq =np.conjugate(strf) * Barray[:, :, :, np.newaxis] * strf
+        # strf_sq =np.conjugate(strf) * Barray[..., np.newaxis] * strf
 
         gg = self.rho.grid.get_reciprocal().gg
         gg[0,0,0,0]=1.0
         invgg=1.0/gg
         invgg[0,0,0,0]=0.0
         gg[0,0,0,0]=0.0
-
-        energy = np.real(4.0*np.pi*np.sum(strf_sq*np.exp(-gg/(4.0*self.eta))*invgg)) / 2.0 / self.rho.grid.volume
-
+        mask = self.rho.grid.get_reciprocal().mask
+        mask2 = mask[..., np.newaxis]
+        # energy = np.real(4.0*np.pi*np.sum(strf_sq*np.exp(-gg/(4.0*self.eta))*invgg)) / 2.0 / self.rho.grid.volume
+        energy = np.sum(strf_sq[mask2]*np.exp(-gg[mask2]/(4.0*self.eta))*invgg[mask2])
+        energy = 4.0* np.pi * energy.real / self.rho.grid.volume
         energy /= self.rho.grid.dV ** 2
-
         return energy
 
     def Forces_rec_PME(self):
@@ -531,7 +532,7 @@ class ewald(object):
         Barray = np.einsum('i, j, k -> ijk', \
                 bm[0] * np.conjugate(bm[0]), bm[1] * np.conjugate(bm[1]), bm[2] * np.conjugate(bm[2]))
         # strf =np.conjugate(strf)
-        strf *= Barray[:, :, :, np.newaxis]
+        strf *= Barray[..., np.newaxis]
 
         gg = self.rho.grid.get_reciprocal().gg
         gg[0,0,0,0]=1.0
@@ -541,7 +542,7 @@ class ewald(object):
 
         nr = self.rho.grid.nr
         strf *= np.exp(-gg/(4.0*self.eta))*invgg
-        strf = strf.ifft(force_real = True)[:, :, :, 0]
+        strf = strf.ifft(force_real = True)[..., 0]
 
         F_rec= np.zeros((self.ions.nat, 3))
         cell_inv = np.linalg.inv(self.ions.pos[0].cell.lattice)
@@ -586,18 +587,18 @@ class ewald(object):
 
         return F_rec
 
-    def Stress_rec_PME(self):
+    def Stress_rec_PME00(self):
         QarrayF = self.PME_Qarray()
         bm = self.Bspline.bm
         # method 1
         strf = QarrayF.fft()
         b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
-        strf *= b123[:, :, :, np.newaxis]
+        strf *= b123[..., np.newaxis]
         strf_sq =np.conjugate(strf)*strf
         # method 2
         # Barray = np.einsum('i, j, k -> ijk', \
                 # bm[0] * np.conjugate(bm[0]), bm[1] * np.conjugate(bm[1]), bm[2] * np.conjugate(bm[2]))
-        # strf_sq =np.conjugate(strf) * Barray[:, :, :, np.newaxis] * strf
+        # strf_sq =np.conjugate(strf) * Barray[..., np.newaxis] * strf
 
         reciprocal_grid = self.rho.grid.get_reciprocal()
         gg = reciprocal_grid.gg
@@ -612,14 +613,69 @@ class ewald(object):
         k = 0
         for i in range(3):
             for j in range(i, 3):
-                sfactor[:, :, :, k] = reciprocal_grid.g[:, :, :, i] * reciprocal_grid.g[:, :, :, j]
-                sfactor[:, :, :, k] *= 2.0/gg[:, :, :, 0] * (1 + gg[:,  :,  :, 0]/(4.0 * self.eta))
+                sfactor[..., k] = reciprocal_grid.g[..., i] * reciprocal_grid.g[..., j]
+                sfactor[..., k] *= 2.0/gg[..., 0] * (1 + gg[..., 0]/(4.0 * self.eta))
                 if i == j :
-                    sfactor[:, :, :, k] -= 1.0
+                    sfactor[..., k] -= 1.0
                 k += 1
 
         gg[0,0,0,0]=0.0
         Stmp =np.einsum('ijkl, ijkl->l', strf_sq*np.exp(-gg/(4.0*self.eta))*invgg, sfactor)
+
+        Stmp = Stmp.real * 2.0 * np.pi / self.rho.grid.volume ** 2 / self.rho.grid.dV ** 2
+        # G = 0 term
+        sum = np.float(0.0)
+        for i in range(self.ions.nat):
+            sum += self.ions.Zval[self.ions.labels[i]]
+        S_g0 = sum ** 2 *  4.0*np.pi*(1.0/(4.0*self.eta*self.rho.grid.volume ** 2)/2.0)
+        k = 0
+        S_rec = np.zeros((3, 3))
+        for i in range(3):
+            for j in range(i, 3):
+                if i == j :
+                    S_rec[i, i] = Stmp[k] + S_g0
+                else :
+                    S_rec[i, j] = S_rec[j, i] = Stmp[k]
+                k += 1
+
+        return S_rec
+    def Stress_rec_PME(self):
+        QarrayF = self.PME_Qarray()
+        bm = self.Bspline.bm
+        # method 1
+        strf = QarrayF.fft()
+        b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
+        strf *= b123[..., np.newaxis]
+        strf_sq =np.conjugate(strf)*strf
+        # method 2
+        # Barray = np.einsum('i, j, k -> ijk', \
+                # bm[0] * np.conjugate(bm[0]), bm[1] * np.conjugate(bm[1]), bm[2] * np.conjugate(bm[2]))
+        # strf_sq =np.conjugate(strf) * Barray[..., np.newaxis] * strf
+
+        reciprocal_grid = self.rho.grid.get_reciprocal()
+        gg = reciprocal_grid.gg
+        mask = reciprocal_grid.mask
+        mask2 = mask[..., np.newaxis]
+        gg[0,0,0,0]=1.0
+        invgg=1.0/gg
+        invgg[0,0,0,0]=0.0
+
+        Stmp = np.zeros(6)
+        size = list(gg.shape)
+        size[-1] = 6
+        sfactor = np.zeros(tuple(size))
+        k = 0
+        for i in range(3):
+            for j in range(i, 3):
+                sfactor[..., k] = reciprocal_grid.g[..., i] * reciprocal_grid.g[..., j]
+                sfactor[..., k] *= 2.0/gg[..., 0] * (1 + gg[..., 0]/(4.0 * self.eta))
+                if i == j :
+                    sfactor[..., k] -= 1.0
+                Stmp[k] =2.0 * np.einsum('i, i->', strf_sq[mask2]*np.exp(-gg[mask2]/(4.0*self.eta))*invgg[mask2], sfactor[..., k][mask]).real
+                k += 1
+
+        gg[0,0,0,0]=0.0
+        # Stmp =np.einsum('ijkl, ijkl->l', strf_sq*np.exp(-gg/(4.0*self.eta))*invgg, sfactor)
 
         Stmp = Stmp.real * 2.0 * np.pi / self.rho.grid.volume ** 2 / self.rho.grid.dV ** 2
         # G = 0 term
