@@ -134,20 +134,20 @@ class Optimization(object):
             p = res
             r0Norm = np.einsum('ijkl->', res ** 2)
             r1Norm = r0Norm
-            rConv = r0Norm * 0.1
-            stat = 1
+            rConv = r0Norm * 0.2
+            stat = 'CONV'
             #https ://en.wikipedia.org/wiki/Conjugate_gradient_method
             for it in range(50):
                 phi1 = phi + epsi * p
                 rho1 = phi1 ** 2
                 func = self.EnergyEvaluator.ComputeEnergyPotential(rho1, calcType = 'Potential')
-                Ap = ((func.potential * np.sign(phi1) - mu) * phi1 - resA[-1]) / epsi
+                Ap = ((func.potential - mu) * phi1 - resA[-1]) / epsi
                 pAp = np.einsum('ijkl->', p * Ap)
                 if pAp < 0.0 :
-                    stat = 2
+                    stat = 'FAILED'
                     if it == 0 :
-                        direction = res
-                        stat = 3
+                        direction = r0Norm / pAp * p
+                        stat = 'WARN'
                     print('!WARN : pAp small than zero :iter = ', it)
                     break
                 alpha = r0Norm / pAp
@@ -157,10 +157,11 @@ class Optimization(object):
                 if r1Norm < rConv :
                     stat = 0  #convergence
                     break
-                beta = r1Norm / r0Norm
+                #Actually, there shouldn't be this parameter here, but I found 0.5 will accelerate convergence.
+                beta = r1Norm / r0Norm * 0.5
                 r0Norm = r1Norm
                 p = res + beta * p 
-            number = it
+            number = it + 1
 
         elif method == 'LBFGS' :
             direction = np.zeros_like(resA[-1])
@@ -214,11 +215,11 @@ class Optimization(object):
         BeginT = time.time()
         phi = np.sqrt(rho)
         func = self.EnergyEvaluator.ComputeEnergyPotential(rho)
-        mu = (func.potential* np.sign(phi)  * rho).integral() / self.EnergyEvaluator.N
-        residual = (func.potential* np.sign(phi)  - mu)* phi
+        mu = (func.potential * rho).integral() / self.EnergyEvaluator.N
+        residual = (func.potential - mu)* phi
         residualA = []
         residualA.append(residual)
-        theta = 0.5
+        theta = 0.2
         pk = -1
         directionA = []
         energy = func.energy
@@ -261,14 +262,14 @@ class Optimization(object):
             def thetaDerivative(theta):
                 newphi = phi * np.cos(theta) + p * np.sin(theta)
                 f = self.EnergyEvaluator.ComputeEnergyPotential(newphi ** 2, calcType = 'Potential')
-                grad = np.sum(f.potential * np.sign(newphi) * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
+                grad = np.sum(f.potential * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
                 # grad = np.sum(f.potential * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
                 return grad * 2.0
 
             def EnergyAndDerivative(theta):
                 newphi = phi * np.cos(theta) + p * np.sin(theta)
                 f = self.EnergyEvaluator.ComputeEnergyPotential(newphi ** 2, calcType = 'Both')
-                grad = np.sum(f.potential * np.sign(newphi) * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
+                grad = np.sum(f.potential * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
                 return [f.energy, grad * 2.0]
 
             if thetaDerivative(0.0) > 0 :
@@ -296,6 +297,7 @@ class Optimization(object):
             theta,_, _, task, NumLineSearch =  LineSearchDcsrch2(EnergyAndDerivative, alpha0 = theta,
                    func0 = func0, c1=1e-4, c2=0.2, amax=np.pi, amin=0.0, xtol=1e-12, maxiter = 100)
             if theta is None :
+                print('!!!ERROR : Line-Search Failed!!!')
                 print('!!!ERROR : Density Optimization NOT Converged  !!!')
                 break
 
@@ -305,8 +307,8 @@ class Optimization(object):
             phi = phi * np.cos(theta) + p * np.sin(theta)
             rho = phi ** 2
             func = self.EnergyEvaluator.ComputeEnergyPotential(rho)
-            mu = (func.potential* np.sign(phi)  * rho).integral() / self.EnergyEvaluator.N
-            residual = (func.potential* np.sign(phi)  - mu)* phi
+            mu = (func.potential * rho).integral() / self.EnergyEvaluator.N
+            residual = (func.potential - mu)* phi
             residualA.append(residual)
 
             if self.optimization_method=='LBFGS' :
