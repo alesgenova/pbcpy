@@ -4,7 +4,7 @@ from .grid import DirectGrid, ReciprocalGrid
 from .functional_output import Functional
 from scipy.interpolate import interp1d, splrep, splev
 import numpy as np
-
+from .constants import LEN_CONV, ENERGY_CONV
 
 class Atom(object):
 
@@ -23,6 +23,7 @@ class Atom(object):
         self._gp = {}       # 1D PP grid g-space 
         self._vp = {}       # PP on 1D PP grid
         self._alpha_mu = {} # G=0 of PP
+        self._vlines = {}
         self._v = None        # PP for atom on 3D PW grid 
         self._vreal = None        # PP for atom on 3D real space
         self.nat = len(pos)
@@ -52,8 +53,10 @@ class Atom(object):
     def set_PP(self,PP_file):
         '''Reads CASTEP-like recpot PP file
         Returns tuple (g, v)'''
-        HARTREE2EV = 27.2113845
-        BOHR2ANG   = 0.529177211
+        # HARTREE2EV = 27.2113845
+        # BOHR2ANG   = 0.529177211
+        HARTREE2EV = ENERGY_CONV['Hartree']['eV']
+        BOHR2ANG   = LEN_CONV['Bohr']['Angstrom']
         with open(PP_file,'r') as outfil:
             lines = outfil.readlines()
 
@@ -75,16 +78,15 @@ class Atom(object):
         return g, v
 
 
-    def interpolate_PP(self,g_PP,v_PP,order=None):
+    def interpolate_PP(self,g_PP,v_PP,order=3):
         '''Interpolates recpot PP
         Returns interpolation function
         Linear interpolation is the default.
         However, it can use 2nd and 3rd order interpolation
         by specifying order=n, n=1-3 in argument list.'''
-        if order is None:
-            order = 1
         # return interp1d(g_PP,v_PP,kind=order)
-        return splrep(g_PP,v_PP,k=order)
+        # return splrep(g_PP,v_PP,k=order)
+        return splrep(g_PP,v_PP, k=order)
 
 
     def strf(self,reciprocal_grid, iatom):
@@ -92,6 +94,10 @@ class Atom(object):
         Returns the Structure Factor associated to i-th ion.
         '''
         a=np.exp(-1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos[iatom]))
+        return np.reshape(a,[reciprocal_grid.nr[0],reciprocal_grid.nr[1],reciprocal_grid.nr[2],1])
+
+    def istrf(self,reciprocal_grid, iatom):
+        a=np.exp(1j*np.einsum('ijkl,l->ijk',reciprocal_grid.g,self.pos[iatom]))
         return np.reshape(a,[reciprocal_grid.nr[0],reciprocal_grid.nr[1],reciprocal_grid.nr[2],1])
 
 
@@ -140,6 +146,7 @@ class Atom(object):
                 vloc = np.zeros(np.shape(q))
                 # vloc[q<np.max(gp)] = vloc_interp(q[q<np.max(gp)])
                 vloc[q<np.max(gp)] = splev(q[q<np.max(gp)], vloc_interp, der = 0)
+                self._vlines[key] = vloc
                 for i in range(len(self.pos)):
                     if self.labels[i] == key :
                         strf = self.strf(reciprocal_grid, i)
@@ -162,7 +169,7 @@ class Atom(object):
             for i in range(len(self.pos)):
                 if self.labels[i] == key :
                     strf = self.strf(reciprocal_grid, i)
-                    v += vloc_deriv * strf
+                    v += vloc_deriv * np.conjugate(strf)
         return ReciprocalField(reciprocal_grid,griddata_3d=v)
 
 
@@ -174,6 +181,12 @@ class Atom(object):
         else:
             return Exception("Must load PP first")
 
+    @property
+    def vlines(self):
+        if self._vlines is not None:
+            return self._vlines
+        else:
+            return Exception("Must load PP first")
 
     @property
     def alpha_mu(self):

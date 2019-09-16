@@ -7,7 +7,7 @@ from .local_functionals_utils import TF, vW
 
 
 cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
-KE_kernel_rho0 =[[], -1]
+KE_kernel_saved ={'Kernel' :None, 'rho0':0.0, 'shape' :None}
 
 def LindhardFunction(eta,lbda,mu):
     '''
@@ -115,10 +115,10 @@ def LindhardDerivative(eta, mu):
     cond2 = np.abs(eta - 1.0) < atol
 
     TempA = np.log(np.abs((1.0+eta[cond0])/(1.0-eta[cond0])))
-    LindDeriv[cond0] = ( 0.5/eta - 0.25 * (eta[cond0] ** 2 + 1.0)/eta[cond0] ** 2 * TempA) \
+    LindDeriv[cond0] = ( 0.5/eta[cond0] - 0.25 * (eta[cond0] ** 2 + 1.0)/eta[cond0] ** 2 * TempA) \
             / (0.5+0.25 * (1 - eta[cond0] ** 2)/eta[cond0] * TempA) ** 2  + \
             6.0 * eta[cond0] * mu
-    LindDeriv[cond1] = 2.0 * eta * (1.0/3.0 - 3.0 * mu)
+    LindDeriv[cond1] = -2.0 * eta[cond1] * (1.0/3.0 - 3.0 * mu)
     LindDeriv[cond2] = -48
 
     return LindDeriv * eta
@@ -189,22 +189,41 @@ def WTStress(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, Energ
     g = rho.grid.get_reciprocal().g
     gg = rho.grid.get_reciprocal().gg
     q = np.sqrt(gg)
+    if EnergyPotential is None :
+        global KE_kernel_saved
+        if abs(KE_kernel_saved['rho0']-rho0) > 1E-6 or np.shape(rho) != KE_kernel_saved['shape'] :
+            print('Re-calculate KE_kernel')
+            KE_kernel = WT_kernel(np.sqrt(gg),rho0, alpha = alpha, beta = beta)
+            KE_kernel_saved['Kernel'] = KE_kernel
+            KE_kernel_saved['rho0'] = rho0
+            KE_kernel_saved['shape'] = np.shape(rho)
+        else :
+            KE_kernel = KE_kernel_saved['Kernel']
+            EnergyPotential = Functional(name='WT')
+            EnergyPotential.energy = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+    mask = rho.grid.get_reciprocal().mask
     factor = 5.0 / (9.0 * alpha * beta * rho0 ** (alpha + beta - 5.0/3.0))
     tkf = 2.0 * (3.0 * rho0 * np.pi**2)**(1.0/3.0)
 
-    rhoG_A = (rho ** alpha).fft()
-    rhoG_B = np.conjugate((rho ** beta).fft())
+    rhoG_A = (rho ** alpha).fft()/ rho.grid.volume
+    rhoG_B = np.conjugate((rho ** beta).fft())/ rho.grid.volume
     DDrho = LindhardDerivative(q/tkf, y) * rhoG_A * rhoG_B
     stress = np.zeros((3, 3))
+    gg[0, 0, 0, 0] = 1.0
+    mask2 = mask[..., np.newaxis]
     for i in range(3):
         for j in range(i, 3):
             if i == j :
                 fac = 1.0/3.0
             else :
                 fac = 0.0
-            den = DDrho * (g[:, :, :, i] * g[:, :, :, j])/gg - fac
-            stress[i, j] = np.einsum('ijkl->', den)
-    stress *= np.pi ** 2 /(alpha*beta*rho0**(alpha+beta-2)*tkf)
+            # den = (g[..., i] * g[..., j]/gg[..., 0]-fac)[..., np.newaxis] * DDrho
+            den = (g[..., i][mask] * g[..., j][mask]/gg[mask2]-fac) * DDrho[mask2]
+            stress[i, j] = (np.einsum('i->', den)).real
+    stress *= np.pi ** 2 /(alpha*beta*rho0**(alpha+beta-2)*tkf/2.0)
+    for i in range(3):
+        stress[i, i] -= 2.0/3.0 * EnergyPotential.energy/rho.grid.volume
+    gg[0, 0, 0, 0] = 0.0
 
     return stress
 
@@ -212,19 +231,18 @@ def WTStress(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, Energ
 
 def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, calcType='Both'):
     
-    global KE_kernel_rho0
+    global KE_kernel_saved
     #Only performed once for each grid
     gg = rho.grid.get_reciprocal().gg
-    rho0 = np.sum(rho)/np.size(rho)
-    # print('DiffRho0', KE_kernel_rho0[1], abs(KE_kernel_rho0[1]-rho0) ,abs(KE_kernel_rho0[1]-rho0) > 1E-7 )
-    if abs(KE_kernel_rho0[1]-rho0) > 1E-6 :
+    rho0 = np.einsum('ijkl -> ', rho) / np.size(rho)
+    if abs(KE_kernel_saved['rho0']-rho0) > 1E-6 or np.shape(rho) != KE_kernel_saved['shape'] :
         print('Re-calculate KE_kernel')
-        KE_kernel_rho0 = []
         KE_kernel = WT_kernel(np.sqrt(gg),rho0, alpha = alpha, beta = beta)
-        KE_kernel_rho0.append(KE_kernel)
-        KE_kernel_rho0.append(rho0)
+        KE_kernel_saved['Kernel'] = KE_kernel
+        KE_kernel_saved['rho0'] = rho0
+        KE_kernel_saved['shape'] = np.shape(rho)
     else :
-        KE_kernel = KE_kernel_rho0[0]
+        KE_kernel = KE_kernel_saved['Kernel']
 
 
     ene = pot = 0

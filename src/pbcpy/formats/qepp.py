@@ -104,48 +104,48 @@ class PP(object):
         with open(self.filepp, 'w') as filepp:
             val_per_line = 5
 
-            # title
-            # filepp.write(self.title)
+            #title
+            filepp.write(system.name)
 
-            # nr1x, nr2x, nr3x, nr1, nr2, nr3, nat, ntyp
-            # mywrite(filepp, self.cell.nrx,False)
-            # mywrite(filepp, self.cell.nr,False)
-            # mywrite(filepp, [len(self.atoms.ions), len(self.atoms.species)],False)
+            #nr1x, nr2x, nr3x, nr1, nr2, nr3, nat, ntyp
+            mywrite(filepp, system.cell.nrx,False)
+            mywrite(filepp, system.cell.nr,False)
+            mywrite(filepp, [len(self.atoms.ions), len(self.atoms.species)],False)
 
-            # ibrav, celldm
-            # mywrite(filepp, self.cell.ibrav,True)
-            # mywrite(filepp, self.cell.celldm,False)
+            #ibrav, celldm
+            mywrite(filepp, self.cell.ibrav,True)
+            mywrite(filepp, self.cell.celldm,False)
 
-            # at(:,i) three times
-            # if self.cell.ibrav == 0 :
-            #    for ilat in range(3):
-            #        mywrite(filepp,self.cell.at[:,ilat],True)
+            #at(:,i) three times
+            if self.cell.ibrav == 0 :
+               for ilat in range(3):
+                   mywrite(filepp,self.cell.at[:,ilat],True)
 
-            # gcutm, dual, ecut, plot_num
-            # mywrite(filepp, self.cutoffvars['gcutm'],True)
-            # mywrite(filepp, self.cutoffvars['dual'],False)
-            # mywrite(filepp, self.cutoffvars['ecut'],False)
-            # mywrite(filepp, self.plot.plot_num,False)
+            #gcutm, dual, ecut, plot_num
+            mywrite(filepp, self.cutoffvars['gcutm'],True)
+            mywrite(filepp, self.cutoffvars['dual'],False)
+            mywrite(filepp, self.cutoffvars['ecut'],False)
+            mywrite(filepp, self.plot.plot_num,False)
 
-            # ntyp
-            # for ity, spc in enumerate(self.atoms.species):
-            #    mywrite(filepp,[ity+1,spc[0],spc[1]],True)
+            #ntyp
+            for ity, spc in enumerate(self.atoms.species):
+               mywrite(filepp,[ity+1,spc[0],spc[1]],True)
 
-            # tau
-            # for iat, ion in enumerate(self.atoms.ions):
-            #    mywrite(filepp,iat+1,True)
-            #    mywrite(filepp,ion.pos,False)
-            #    mywrite(filepp,ion.typ+1,False)
+            #tau
+            for iat, ion in enumerate(self.atoms.ions):
+               mywrite(filepp,iat+1,True)
+               mywrite(filepp,ion.pos,False)
+               mywrite(filepp,ion.typ+1,False)
 
-            # plot
-            #nlines = system.field.grid.nnr // val_per_line
-            #grid_pp = system.field.get_values_1darray(order='F')
-            #for iline in range(nlines):
-            #    igrid = iline * val_per_line
-            #    mywrite(filepp, grid_pp[igrid:igrid + val_per_line], True)
-            #igrid = (iline + 1) * val_per_line
-            #mywrite(filepp, grid_pp[igrid:self.grid.nnr], True)
-            pass
+            #plot
+            nlines = system.field.grid.nnr // val_per_line
+            grid_pp = system.field.get_values_1darray(order='F')
+            for iline in range(nlines):
+                igrid = iline * val_per_line
+                mywrite(filepp, grid_pp[igrid:igrid + val_per_line], True)
+            igrid = (iline + 1) * val_per_line
+            mywrite(filepp, grid_pp[igrid:self.grid.nnr], True)
+            #pass
 
     def celldm2at(self, ibrav, celldm):
 
