@@ -63,16 +63,25 @@ class Optimization(object):
 
         if optimization_options is None:
             self.optimization_options={}
-            self.optimization_options["disp"] = None
-            self.optimization_options["maxcor"] = 5
-            self.optimization_options["ftol"] = 1.0e-7
-            self.optimization_options["gtol"] = 1.0e-7
-            self.optimization_options["maxfun"] = 1000
-            self.optimization_options["maxiter"] = 100
-            self.optimization_options["maxls"] = 10
-            self.optimization_options["econv"] = 1E-5
         else:
             self.optimization_options = optimization_options
+
+        if not 'disp' in self.optimization_options.keys():
+            self.optimization_options["disp"] = None
+        if not 'maxcor' in self.optimization_options.keys():
+            self.optimization_options["maxcor"] = 5
+        if not 'ftol' in self.optimization_options.keys():
+            self.optimization_options["ftol"] = 1.0e-7
+        if not 'gtol' in self.optimization_options.keys():
+            self.optimization_options["gtol"] = 1.0e-7
+        if not 'maxfun' in self.optimization_options.keys():
+            self.optimization_options["maxfun"] = 1000
+        if not 'maxiter' in self.optimization_options.keys():
+            self.optimization_options["maxiter"] = 100
+        if not 'maxls' in self.optimization_options.keys():
+            self.optimization_options["maxls"] = 10
+        if not 'econv' in self.optimization_options.keys():
+            self.optimization_options["econv"] = 1.0e-5
         
         if EnergyEvaluator is None:
             raise AttributeError('Must provide an energy evaluator')
@@ -158,7 +167,8 @@ class Optimization(object):
                     stat = 0  #convergence
                     break
                 #Actually, there shouldn't be this parameter here, but I found 0.5 will accelerate convergence.
-                beta = r1Norm / r0Norm * 0.5
+                beta = r1Norm / r0Norm
+                #beta = r1Norm / r0Norm * 0.5
                 r0Norm = r1Norm
                 p = res + beta * p 
             number = it + 1
