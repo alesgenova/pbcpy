@@ -289,9 +289,9 @@ class TotalEnergyAndPotential(object):
         return  E , final_v_.ravel()
     
     def ComputeEnergyPotential(self,rho, calcType = 'Both'):
-        import time
+        #import time
         # t1 = time.time()
-        self.KineticEnergyFunctional(rho,calcType) 
+        # self.KineticEnergyFunctional(rho,calcType)
         # t2 = time.time()
         # print('KE time', t2 - t1)
         # self.XCFunctional(rho,calcType) 
