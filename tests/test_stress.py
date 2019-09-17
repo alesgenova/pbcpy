@@ -66,12 +66,12 @@ def test_stress():
     optional_kwargs = {}
     optional_kwargs["PP_list"] = {'Ga': path_pp+file1,'As': path_pp+file2}
     rho =new_rho
-    print('WTStress\n', WTStress(rho))
-    print('LDAStress\n', LDAStress(rho))
-    print('ThomasFermiStress\n', ThomasFermiStress(rho))
-    print('vonWeizsackerStress\n', vonWeizsackerStress(rho))
-    print('NuclearElectronStress\n', NuclearElectronStress(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
-    print('HartreeFunctionalStress\n', HartreeFunctionalStress(rho))
+    # print('WTStress\n', WTStress(rho))
+    # print('LDAStress\n', LDAStress(rho))
+    # print('ThomasFermiStress\n', ThomasFermiStress(rho))
+    # print('vonWeizsackerStress\n', vonWeizsackerStress(rho))
+    # print('NuclearElectronStress\n', NuclearElectronStress(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
+    # print('HartreeFunctionalStress\n', HartreeFunctionalStress(rho))
     from pbcpy.local_pseudopotential import NuclearElectronForce
     print('IEForce\n', NuclearElectronForce(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
 
