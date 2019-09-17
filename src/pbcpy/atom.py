@@ -113,7 +113,6 @@ class Atom(object):
                 self.Get_PP_Reciprocal_PME(grid,PP_file)
             else :
                 self.Get_PP_Reciprocal(grid,PP_file)
-            self.Get_PP_Reciprocal(grid,PP_file)
         if self._vreal is None:
             self._vreal = DirectField(grid=grid,griddata_3d=np.real(self._v.ifft()))
         ene = pot = 0
