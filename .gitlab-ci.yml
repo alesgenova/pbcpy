@@ -2,15 +2,15 @@ BuildAndTest:
   image: python:3
   before_script:
     - apt-get update -qq && apt-get install -y -qq gcc gfortran automake cmake
-    - git clone https://gitlab.com/libxc/libxc.git
-    - home=$( pwd )
-    - cd libxc
-    - autoreconf -i
-    - ./configure --prefix=${home}/libxc
-    - make
-    - make install
-    - python setup.py install
-    - cd ..
+    #- git clone https://gitlab.com/libxc/libxc.git
+    #- home=$( pwd )
+    #- cd libxc
+    #- autoreconf -i
+    #- ./configure --prefix=${home}/libxc
+    #- make
+    #- make install
+    #- python setup.py install
+    #- cd ..
     - pip install setuptools m2r
     - pip install pytest pytest-cov
   script:
