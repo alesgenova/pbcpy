@@ -93,8 +93,22 @@ class BaseField(np.ndarray):
 
     def integral(self):
         ''' Returns the integral of self '''
-        return np.einsum('ijkl->',self)*self.grid.dV
+        if self.rank == 1:
+            return np.einsum('ijkl->',self)*self.grid.dV
+        else:
+            return np.einsum('ijkl->l',self)*self.grid.dV
         #return float(np.sum(self))*self.grid.dV
+
+    def dot(self, obj):
+        ''' Returns the dot product of vector fields self and obj '''
+        if np.shape(self) != np.shape(obj):
+            raise ValueError('Shape incompatant') # to be specified
+
+        prod = np.einsum('ijkl,ijkl->ijk', self, obj)
+        prod = np.expand_dims(prod, axis = 3)
+
+        return type(self)(self.grid, rank=1, griddata_3d=prod)
+
 
 
 class DirectField(BaseField):
@@ -188,7 +202,12 @@ class DirectField(BaseField):
         elif flag is 'supersmooth':
             return self.super_smooth_gradient()
 
-
+    def laplacian(self, check_real = False, force_real = False, Sigma = 0.025):
+        self_fft = self.fft()
+        gg = self_fft.grid.gg
+        self_fft = -gg*self_fft*np.exp(-gg*(Sigma*Sigma)/4.0)
+        #self_fft = -self_fft.grid.gg*self_fft
+        return self_fft.ifft(check_real = check_real, force_real = force_real)
 
     def sigma(self):
         """
@@ -423,7 +442,7 @@ class ReciprocalField(BaseField):
         '''
         direct_grid = self.grid.get_direct()
         nr = *self.grid.nr, self.rank
-        griddata_3d = np.zeros(nr, dtype=complex)
+        griddata_3d = np.empty(nr, dtype=complex)
         for i in range(self.rank):
             # if FFTLIB == 'pyfftw' :
                 # rA = self.ifft_object(self[:,:, :np.shape(self)[2]//2+1,i])/direct_grid.dV
@@ -605,7 +624,7 @@ class ReciprocalFieldHalf(ReciprocalField):
                 data = self[...,0]
                 griddata_3d = self.ifft_object(data)/direct_grid.dV
             elif FFTLIB == 'numpy' :
-                griddata_3d = np.fft.irfftn(self[...,0])/direct_grid.dV
+                griddata_3d = np.fft.irfftn(self[...,0], s = nr[:-1])/direct_grid.dV
         else :
             griddata_3d = np.empty(nr)
             for i in range(self.rank):
