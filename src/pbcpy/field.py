@@ -156,7 +156,7 @@ class DirectField(BaseField):
         reciprocal_self = self.fft()
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
-        grad_g = np.zeros(nr, dtype=complex)
+        grad_g = np.empty(nr, dtype=complex)
         # Quantum Espresso way!
         for i in range(3):
             # FFT(\grad A) = i \vec(G) * FFT(A)
@@ -172,7 +172,7 @@ class DirectField(BaseField):
         reciprocal_self = self.fft()
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
-        grad_g = np.zeros(nr, dtype=complex)
+        grad_g = np.empty(nr, dtype=complex)
         # Quantum Espresso way!
         for i in range(3):
             # FFT(\grad A) = i \vec(G) * FFT(A)
@@ -188,9 +188,9 @@ class DirectField(BaseField):
             raise ValueError("Divergence: Rank incompatible")
         imag = (0 + 1j)
         nr = *self.grid.nr, 3
-        grad_g = np.zeros(nr, dtype=complex)
+        grad_g = np.empty(nr, dtype=complex)
         nr = *self.grid.nr, 1
-        reciprocal_self = np.zeros(nr, dtype=complex)
+        #reciprocal_self = np.empty(nr, dtype=complex)
         grad_g= self.grid.get_reciprocal().g*self.fft()*imag* np.exp(-self.grid.get_reciprocal().gg*(0.1/2.0)**2  )
         grad_g = ReciprocalField(grid=self.grid.get_reciprocal(), rank=3, griddata_3d=grad_g)
         grad = grad_g.ifft(check_real=True)
@@ -211,7 +211,8 @@ class DirectField(BaseField):
     def laplacian(self, check_real = False, force_real = False, Sigma = 0.025):
         self_fft = self.fft()
         gg = self_fft.grid.gg
-        self_fft = -gg*self_fft*np.exp(-gg*(Sigma)**2/4.0)
+        self_fft = -gg*self_fft*np.exp(-gg*(Sigma*Sigma)/4.0)
+        #self_fft = -self_fft.grid.gg*self_fft
         return self_fft.ifft(check_real = check_real, force_real = force_real)
 
     def sigma(self):
@@ -242,7 +243,7 @@ class DirectField(BaseField):
         dim = np.shape(np.shape(self))[0]
         #print("New Shape = ",dim)
         reciprocal_grid = self.grid.get_reciprocal()
-        griddata_3d = np.zeros(nr, dtype=complex)
+        griddata_3d = np.empty(nr, dtype=complex)
         for i in range(self.rank):
             if FFTLIB == 'pyfftw' :
                 cA = self.fft_object(self[...,i])*self.grid.dV
@@ -448,7 +449,7 @@ class ReciprocalField(BaseField):
         '''
         direct_grid = self.grid.get_direct()
         nr = *self.grid.nr, self.rank
-        griddata_3d = np.zeros(nr, dtype=complex)
+        griddata_3d = np.empty(nr, dtype=complex)
         for i in range(self.rank):
             if FFTLIB == 'pyfftw' :
                 rA = self.ifft_object(self[:,:, :np.shape(self)[2]//2+1,i])/direct_grid.dV
