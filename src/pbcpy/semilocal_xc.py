@@ -3,7 +3,10 @@
 import numpy as np
 from .field import DirectField
 from .functional_output import Functional
-from pylibxc.functional import LibXCFunctional
+try:
+    from pylibxc.functional import LibXCFunctional
+except:
+    print('!WARN : You can only use LDA functional')
 
 def Get_LibXC_Input(density,do_sigma=True):
     if not isinstance(density,(DirectField)):

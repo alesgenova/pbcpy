@@ -6,16 +6,140 @@ from scipy.spatial.distance import cdist
 from .grid import DirectGrid, ReciprocalGrid
 from .field import DirectField, ReciprocalField
 #from .functional_output import Functional
-from .hartree import HartreeFunctional, HartreePotentialReciprocalSpace
-from .formats.qepp import PP
-from .math_utils import CBspline
+# from .hartree import HartreeFunctional, HartreePotentialReciprocalSpace
 from itertools import product
 import time
 
+class CBspline(object):
+    '''
+    the Cardinal B-splines
+    '''
+    def __init__(self, ions = None, grid = None, order = 10, **kwargs):
+        self._order = order
+        self._Mn = None
+        self._bm = None
+        self._Barray = None
+        self._PME_Qarray = None
+
+        if ions is not None:
+            self.ions      = ions
+        else:
+            raise AttributeError("Must pass ions to CBspline")
+
+        if grid is not None:
+            self.grid       = grid
+        else:
+            raise AttributeError("Must pass grid to CBspline")
+
+    @property
+    def order(self):
+        return self._order
+
+    @property
+    def bm(self):
+        if self._bm is None :
+            self._bm = self._calc_bm()
+        return self._bm
+
+    @property
+    def Barray(self):
+        if self._Barray is None :
+            if self._bm is None :
+                self._bm = self._calc_bm()
+            bm = self._bm
+            array = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
+            self._Barray = DirectField(self.grid,griddata_3d=array,rank=1)
+        return self._Barray
+
+    @property
+    def PME_Qarray(self):
+        if self._PME_Qarray is None :
+            self._PME_Qarray = self._calc_PME_Qarray()
+        return self._PME_Qarray
+
+    def calc_Mn(self, x, order = None):
+        '''
+        x -> [0, 1)
+        x --> u + {0, 1, ..., order}
+        u -> [0, 1), [1, 2),...,[order, order + 1)
+        M_n(u) = u/(n-1)*M_(n-1)(u) + (n-u)/(n-1)*M_(n-1)(u-1)
+        '''
+        if not order :
+            order = self.order
+
+        Mn = np.zeros(self.order + 1)
+        Mn[1] = x
+        Mn[2] = 1.0 - x
+        for i in range(3, order + 1):
+            for j in range(0, i):
+                n = i - j
+                # Mn[n] = (x + n - 1) * Mn[n] + (i - (x + n - 1)) * Mn[n - 1]
+                Mn[n] = (x + n - 1) * Mn[n] + (j + 1 - x) * Mn[n - 1]
+                Mn[n] /= (i  - 1)
+        return Mn
+
+    def _calc_bm(self):
+        nr = self.grid.nr
+        Mn = self.calc_Mn(1.0)
+        bm = []
+        for i in range(3):
+            q = 2.0 * np.pi * np.arange(nr[i]) / nr[i]
+            tmp = np.exp(-1j * (self.order - 1.0) * q)
+            bm.append(tmp)
+            factor = np.zeros_like(bm[i])
+            for k in range(1, self.order):
+                factor += Mn[k] * np.exp(-1j * k * q)
+            bm[i] /= factor
+        return bm
+
+    def _calc_PME_Qarray(self):
+        '''
+        Using the smooth particle mesh Ewald method to calculate structure factors.
+        '''
+        nr = self.grid.nr
+        Qarray = np.zeros(nr)
+        # for ion in self.ions :
+            # Up = np.array(ion.pos.to_crys()) * nr
+            # Mn = []
+            # for i in range(3):
+                # Mn.append( self.calc_Mn(Up[i] - np.floor(Up[i])) )
+            # for ixyz in product(range(1, self.order + 1), repeat = 3):
+                # l123 = np.mod(np.floor(Up) - ixyz, nr).astype(np.int32)
+                # Qarray[tuple(l123)] += ion.Zval * Mn[0][ixyz[0]] * Mn[1][ixyz[1]] * Mn[2][ixyz[2]]
+
+        ## For speed
+        # ixyzA = np.mgrid[1:self.order + 1, 1:self.order + 1, 1:self.order + 1].reshape((3, -1))
+        # l123A = np.mod(np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA, nr.reshape((3, 1)))
+        ixyzA = np.mgrid[:self.order, :self.order, :self.order].reshape((3, -1))
+        for i in range(self.ions.nat):
+            Up = np.array(self.ions.pos[i].to_crys()) * nr
+            Mn = []
+            for j in range(3):
+                Mn.append( self.calc_Mn(Up[j] - np.floor(Up[j])) )
+            Mn_multi = np.einsum('i, j, k -> ijk', self.ions.Zval[self.ions.labels[i]] *  Mn[0][1:], Mn[1][1:], Mn[2][1:])
+            l123A = np.mod(np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA+1, nr.reshape((3, 1)))
+            Qarray[l123A[0], l123A[1], l123A[2]] += Mn_multi.reshape(-1)
+        return DirectField(self.grid,griddata_3d=Qarray,rank=1)
+
+    def get_PME_Qarray(self, i):
+        '''
+        Using the smooth particle mesh Ewald method to calculate structure factors.
+        '''
+        nr = self.grid.nr
+        Qarray = np.zeros(nr)
+        ixyzA = np.mgrid[:self.order, :self.order, :self.order].reshape((3, -1))
+        Up = np.array(self.ions.pos[i].to_crys()) * nr
+        Mn = []
+        for j in range(3):
+            Mn.append( self.calc_Mn(Up[j] - np.floor(Up[j])) )
+        Mn_multi = np.einsum('i, j, k -> ijk', Mn[0][1:], Mn[1][1:], Mn[2][1:])
+        l123A = np.mod(1 + np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA,  nr.reshape((3, 1)))
+        Qarray[l123A[0], l123A[1], l123A[2]] = Mn_multi.reshape(-1)
+        return DirectField(self.grid,griddata_3d=Qarray,rank=1)
 
 class ewald(object):
 
-    def __init__(self, precision=1.0e-8, ions=None, rho=None, verbose=False, BsplineOrder = 10, PME = False):
+    def __init__(self, precision=1.0e-8, ions=None, rho=None, verbose=False, BsplineOrder = 10, PME = False, Bspline = None):
         '''
         This computes Ewald contributions to the energy given a DirectField rho.
         INPUT: precision  float, should be bigger than the machine precision and 
@@ -49,8 +173,10 @@ class ewald(object):
 
         self.usePME = PME
         if self.usePME :
-            self.Bspline = CBspline(ions = self.ions, rho = self.rho, order = self.order)
-            
+            if Bspline is None :
+                self.Bspline = CBspline(ions = self.ions, grid = self.rho.grid, order = self.order)
+            else :
+                self.Bspline = Bspline
     def Get_Gmax(self,grid):
         gg = grid.get_reciprocal().gg
         gmax_x = np.sqrt(np.amax(gg[:,0,0]))
@@ -470,7 +596,7 @@ class ewald(object):
 
         return S_rec
 
-    def PME_Qarray(self):
+    def PME_Qarray_Ewald(self):
         '''
         Using the smooth particle mesh Ewald method to calculate structure factors.
         '''
@@ -499,12 +625,13 @@ class ewald(object):
         return DirectField(self.rho.grid,griddata_3d=np.reshape(Qarray,np.shape(self.rho)),rank=1)
 
     def Energy_rec_PME(self):
-        QarrayF = self.PME_Qarray()
-        bm = self.Bspline.bm
+        QarrayF = self.Bspline.PME_Qarray
+        # bm = self.Bspline.bm
         # method 1
         strf = QarrayF.fft()
-        b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
-        strf *= b123[..., np.newaxis]
+        # b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
+        # strf *= b123[..., np.newaxis]
+        strf *= self.Bspline.Barray
         strf_sq =np.conjugate(strf)*strf
         # method 2
         # Barray = np.einsum('i, j, k -> ijk', \
@@ -525,15 +652,16 @@ class ewald(object):
         return energy
 
     def Forces_rec_PME(self):
-        QarrayF = self.PME_Qarray()
+        QarrayF = self.Bspline.PME_Qarray
         strf = QarrayF.fft()
         Bspline = self.Bspline
-        bm = Bspline.bm
-        Barray = np.einsum('i, j, k -> ijk', \
-                bm[0] * np.conjugate(bm[0]), bm[1] * np.conjugate(bm[1]), bm[2] * np.conjugate(bm[2]))
-        # strf =np.conjugate(strf)
-        strf *= Barray[..., np.newaxis]
-
+        Barray = Bspline.Barray
+        Barray = Barray * np.conjugate(Barray)
+        strf *= Barray
+        # bm = Bspline.bm
+        # Barray = np.einsum('i, j, k -> ijk', \
+                # bm[0] * np.conjugate(bm[0]), bm[1] * np.conjugate(bm[1]), bm[2] * np.conjugate(bm[2]))
+        # strf *= Barray[..., np.newaxis]
         gg = self.rho.grid.get_reciprocal().gg
         gg[0,0,0,0]=1.0
         invgg=1.0/gg
@@ -566,7 +694,7 @@ class ewald(object):
             # F_rec[i] *= self.ions[i].Zval
 
         ## For speed
-        ixyzA = np.mgrid[1:self.order + 1, 1:self.order + 1, 1:self.order + 1].reshape((3, -1))
+        ixyzA = np.mgrid[:self.order, :self.order, :self.order].reshape((3, -1))
         Q_derivativeA = np.zeros((3, self.order * self.order * self.order))
         for i in range(self.ions.nat):
             Up = np.array(self.ions.pos[i].to_crys()) * nr
@@ -579,7 +707,7 @@ class ewald(object):
             Q_derivativeA[1] = nr[1] * np.einsum('i, j, k -> ijk', Mn[0][1:], Mn_2[1][1:]-Mn_2[1][:-1], Mn[2][1:]).reshape(-1)
             Q_derivativeA[2] = nr[2] * np.einsum('i, j, k -> ijk', Mn[0][1:], Mn[1][1:], Mn_2[2][1:]-Mn_2[2][:-1]).reshape(-1)
 
-            l123A = np.mod(np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA, nr.reshape((3, 1)))
+            l123A = np.mod(1+np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA, nr.reshape((3, 1)))
             F_rec[i] -= np.sum(np.matmul(Q_derivativeA.T, cell_inv) * strf[l123A[0], l123A[1], l123A[2]][:, np.newaxis], axis=0)
             F_rec[i] *= self.ions.Zval[self.ions.labels[i]]
 
@@ -587,13 +715,14 @@ class ewald(object):
 
         return F_rec
 
-    def Stress_rec_PME00(self):
-        QarrayF = self.PME_Qarray()
-        bm = self.Bspline.bm
+    def Stress_rec_PME_full(self):
+        QarrayF = self.Bspline.PME_Qarray
+        # bm = self.Bspline.bm
         # method 1
         strf = QarrayF.fft()
-        b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
-        strf *= b123[..., np.newaxis]
+        # b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
+        # strf *= b123[..., np.newaxis]
+        strf *= self.Bspline.Barray
         strf_sq =np.conjugate(strf)*strf
         # method 2
         # Barray = np.einsum('i, j, k -> ijk', \
@@ -639,13 +768,15 @@ class ewald(object):
                 k += 1
 
         return S_rec
+
     def Stress_rec_PME(self):
-        QarrayF = self.PME_Qarray()
-        bm = self.Bspline.bm
+        QarrayF = self.Bspline.PME_Qarray
+        # bm = self.Bspline.bm
         # method 1
         strf = QarrayF.fft()
-        b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
-        strf *= b123[..., np.newaxis]
+        # b123 = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
+        # strf *= b123[..., np.newaxis]
+        strf *= self.Bspline.Barray
         strf_sq =np.conjugate(strf)*strf
         # method 2
         # Barray = np.einsum('i, j, k -> ijk', \
