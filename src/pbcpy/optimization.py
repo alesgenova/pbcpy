@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize, line_search
 # from scipy.optimize.linesearch import line_search_wolfe1
 from scipy.optimize.linesearch import scalar_search_wolfe1
-from .field import DirectField
+from .field import DirectFieldHalf
 from .math_utils import LineSearchDcsrch,LineSearchDcsrch2
 import time
 
@@ -43,7 +43,7 @@ class Optimization(object):
     EnergyEvaluator: TotalEnergyAndPotential class   
             
 
-    guess_rho: DirectField, optional
+    guess_rho: DirectFieldHalf, optional
             an initial guess for the electron density
 
      Example
@@ -75,7 +75,7 @@ class Optimization(object):
         if not 'gtol' in self.optimization_options.keys():
             self.optimization_options["gtol"] = 1.0e-7
         if not 'maxfun' in self.optimization_options.keys():
-            self.optimization_options["maxfun"] = 1000
+            self.optimization_options["maxfun"] = 50
         if not 'maxiter' in self.optimization_options.keys():
             self.optimization_options["maxiter"] = 100
         if not 'maxls' in self.optimization_options.keys():
@@ -102,7 +102,7 @@ class Optimization(object):
                        method=self.optimization_method,
                        options=self.optimization_options)
         print(res.message)
-        rho = DirectField(rho.grid,griddata_3d=np.reshape(res.x**2,np.shape(rho)),rank=1)
+        rho = DirectFieldHalf(rho.grid,griddata_3d=np.reshape(res.x**2,np.shape(rho)),rank=1)
         self.rho = rho
         return rho
 
@@ -135,20 +135,20 @@ class Optimization(object):
         elif method == 'TN' :
             direction = np.zeros_like(resA[-1])
             epsi = 1.0E-9
-            rho = phi ** 2
+            rho = phi * phi
             if mu is None :
                 func = self.EnergyEvaluator.ComputeEnergyPotential(rho, calcType = 'Potential')
                 mu = (func.potential * rho).integral() / self.EnergyEvaluator.N
             res = -resA[-1]
             p = res
-            r0Norm = np.einsum('ijkl->', res ** 2)
+            r0Norm = np.einsum('ijkl, ijkl->', res, res)
             r1Norm = r0Norm
             rConv = r0Norm * 0.2
             stat = 'CONV'
             #https ://en.wikipedia.org/wiki/Conjugate_gradient_method
-            for it in range(50):
+            for it in range(self.optimization_options["maxfun"]):
                 phi1 = phi + epsi * p
-                rho1 = phi1 ** 2
+                rho1 = phi1 * phi1
                 func = self.EnergyEvaluator.ComputeEnergyPotential(rho1, calcType = 'Potential')
                 Ap = ((func.potential - mu) * phi1 - resA[-1]) / epsi
                 pAp = np.einsum('ijkl->', p * Ap)
@@ -162,20 +162,20 @@ class Optimization(object):
                 alpha = r0Norm / pAp
                 direction += alpha * p
                 res -= alpha * Ap
-                r1Norm = np.einsum('ijkl->', res ** 2)
+                r1Norm = np.einsum('ijkl, ijkl->', res, res)
                 if r1Norm < rConv :
                     stat = 0  #convergence
                     break
                 #Actually, there shouldn't be this parameter here, but I found 0.5 will accelerate convergence.
                 beta = r1Norm / r0Norm
-                #beta = r1Norm / r0Norm * 0.5
+                # beta = r1Norm / r0Norm * 0.5
                 r0Norm = r1Norm
                 p = res + beta * p 
             number = it + 1
 
         elif method == 'LBFGS' :
             direction = np.zeros_like(resA[-1])
-            rho = phi ** 2
+            rho = phi * phi
             if mu is None :
                 func = self.EnergyEvaluator.ComputeEnergyPotential(rho, calcType = 'Potential')
                 mu = (func.potential * rho).integral() / self.EnergyEvaluator.N
@@ -207,7 +207,7 @@ class Optimization(object):
         N = self.EnergyEvaluator.N
         p -= (p * phi).integral() / self.EnergyEvaluator.N * phi
         # print('Na', self.EnergyEvaluator.N, (phi * phi).integral())
-        pNorm = (p ** 2).integral()
+        pNorm = (p * p).integral()
         # theta = np.sqrt( pNorm / self.EnergyEvaluator.N )
         theta = np.sqrt( pNorm / N)
         p *= np.sqrt(self.EnergyEvaluator.N / pNorm)
@@ -229,7 +229,7 @@ class Optimization(object):
         residual = (func.potential - mu)* phi
         residualA = []
         residualA.append(residual)
-        theta = 0.2
+        theta = 0.5
         pk = -1
         directionA = []
         energy = func.energy
@@ -243,7 +243,7 @@ class Optimization(object):
         fmt = "{:<8d}".format(0)
         fmt += "{:<24.12E}".format(energy)
         fmt += "{:<16s}".format('+999999999E99')
-        fmt += "{:<16.6E}".format(np.einsum('ijkl->', residual ** 2))
+        fmt += "{:<16.6E}".format(np.einsum('ijkl, ijkl->', residual,residual))
         fmt += "{:<8d}".format(1)
         fmt += "{:<8d}".format(1)
         fmt += "{:<16.6E}".format(CostTime)
@@ -265,20 +265,20 @@ class Optimization(object):
 
             def thetaEnergy(theta):
                 newphi = phi * np.cos(theta) + p * np.sin(theta)
-                f = self.EnergyEvaluator.ComputeEnergyPotential(newphi ** 2, calcType = 'Energy')
+                f = self.EnergyEvaluator.ComputeEnergyPotential(newphi*newphi, calcType = 'Energy')
                 # print('e111', f.energy, theta)
                 return f.energy
 
             def thetaDerivative(theta):
                 newphi = phi * np.cos(theta) + p * np.sin(theta)
-                f = self.EnergyEvaluator.ComputeEnergyPotential(newphi ** 2, calcType = 'Potential')
+                f = self.EnergyEvaluator.ComputeEnergyPotential(newphi*newphi, calcType = 'Potential')
                 grad = np.sum(f.potential * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
                 # grad = np.sum(f.potential * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
                 return grad * 2.0
 
             def EnergyAndDerivative(theta):
                 newphi = phi * np.cos(theta) + p * np.sin(theta)
-                f = self.EnergyEvaluator.ComputeEnergyPotential(newphi ** 2, calcType = 'Both')
+                f = self.EnergyEvaluator.ComputeEnergyPotential(newphi*newphi, calcType = 'Both')
                 grad = np.sum(f.potential * newphi * (p * np.cos(theta) - phi * np.sin(theta)))
                 return [f.energy, grad * 2.0]
 
@@ -315,7 +315,7 @@ class Optimization(object):
             ### Just for LBFGS 
             old_phi = phi
             phi = phi * np.cos(theta) + p * np.sin(theta)
-            rho = phi ** 2
+            rho = phi * phi
             func = self.EnergyEvaluator.ComputeEnergyPotential(rho)
             mu = (func.potential * rho).integral() / self.EnergyEvaluator.N
             residual = (func.potential - mu)* phi
@@ -331,7 +331,7 @@ class Optimization(object):
             fmt = "{:<8d}".format(it)
             fmt += "{:<24.12E}".format(energy)
             fmt += "{:<16.6E}".format(EnergyHistory[-1]-EnergyHistory[-2])
-            fmt += "{:<16.6E}".format(np.einsum('ijkl->', residual ** 2))
+            fmt += "{:<16.6E}".format(np.einsum('ijkl, ijkl->', residual,residual))
             fmt += "{:<8d}".format(NumDirectrion)
             fmt += "{:<8d}".format(NumLineSearch)
             fmt += "{:<16.6E}".format(CostTime)
@@ -346,4 +346,4 @@ class Optimization(object):
             if len(directionA) > 2 :
                 directionA.pop(0)
 
-        return phi ** 2
+        return rho

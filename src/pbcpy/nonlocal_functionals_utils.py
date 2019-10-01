@@ -1,9 +1,11 @@
 import numpy as np
 import scipy.special as sp
 from .functional_output import Functional
+from .field import ReciprocalFieldHalf, DirectFieldHalf
 # from .local_functionals_utils import vonWeizsackerEnergy, vonWeizsackerPotential
 # from .local_functionals_utils import ThomasFermiEnergy, ThomasFermiPotential
 from .local_functionals_utils import TF, vW
+from .math_utils import multiply, add, power
 
 
 cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
@@ -171,14 +173,32 @@ def WT_kernel(q,rho0, x = 1.0, y = 1.0, alpha = 5.0/6.0, beta = 5.0/6.0):
         return LindhardFunction2(q/tkf,x,y)*factor
 
 def WTPotential(rho, rho0, Kernel, alpha, beta):
-    pot1 = alpha * rho ** (alpha - 1.0) * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
-    pot2 = beta * rho ** (beta - 1.0) * ((rho ** alpha).fft() * Kernel).ifft(force_real = True)
+    alphaMinus1 = alpha - 1.0
+    betaMinus1 = beta - 1.0
+    # print('111', rho.flags )
+    # print('222', (rho.fft()).flags)
+    pot1 = alpha * rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    # pot1 = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, beta))
+    # pot1 = alpha * power(rho, alphaMinus1) * (pot1.fft() * Kernel).ifft(force_real = True)
+    if abs(beta - alpha) < 1E-9 :
+        pot2 = pot1
+    else :
+        pot2 = beta * rho ** betaMinus1 * ((rho ** alpha).fft() * Kernel).ifft(force_real = True)
+        # pot2 = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, alpha))
+        # pot2 = alpha * power(rho, betaMinus1) * (pot2.fft() * Kernel).ifft(force_real = True)
 
     return cTF * (pot1 + pot2)
 
 def WTEnergy(rho, rho0, Kernel, alpha, beta):
-    pot1 = ((rho ** beta).fft() * Kernel).ifft(force_real = True)
-    pot1 = cTF * (rho ** alpha * pot1)
+    rhoBeta = rho ** beta
+    # rhoBeta = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, beta))
+    if abs(beta - alpha) < 1E-9 :
+        rhoAlpha = rhoBeta
+    else :
+        rhoAlpha = rho ** alpha
+        # rhoAlpha = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, alpha))
+    pot1 = (rhoBeta.fft() * Kernel).ifft(force_real = True)
+    pot1 = cTF * (rhoAlpha * pot1)
     ene = np.einsum('ijkl->', pot1) * rho.grid.dV
 
     return ene

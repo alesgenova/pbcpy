@@ -6,12 +6,14 @@ from pbcpy.functionals import FunctionalClass, TotalEnergyAndPotential
 from pbcpy.constants import LEN_CONV
 from pbcpy.formats.qepp import PP
 from pbcpy.ewald import ewald
-from pbcpy.grid import DirectGrid, ReciprocalGrid
-from pbcpy.field import DirectField, ReciprocalField
+from pbcpy.grid import DirectGridHalf
+from pbcpy.field import DirectFieldHalf
 from pbcpy.io.vasp import  read_POSCAR
+import time
 
 class TestFunctional(unittest.TestCase):
     def test_optim(self):
+        print('Begin on :', time.strftime("%Y-%m-%d %H:%M:%S",  time.localtime()))
         path_pp='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
         path_pos='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/POSCAR/'
         file1='Ga_lda.oe04.recpot'
@@ -27,9 +29,10 @@ class TestFunctional(unittest.TestCase):
         for i in range(3):
             nr[i] = int(np.sqrt(metric[i, i])/gap)
         print('The grid size is ', nr)
-        grid = DirectGrid(lattice=lattice, nr=nr, units=None)
+        grid = DirectGridHalf(lattice=lattice, nr=nr, units=None)
         zerosA = np.zeros(grid.nnr, dtype=float)
-        rho_ini = DirectField(grid=grid, griddata_F=zerosA, rank=1)
+        # rho_ini = DirectFieldHalf(grid=grid, griddata_F=zerosA, rank=1)
+        rho_ini = DirectFieldHalf(grid=grid, griddata_C=zerosA, rank=1)
         charge_total = 0.0
         for i in range(ions.nat) :
             charge_total += ions.Zval[ions.labels[i]]
@@ -62,6 +65,7 @@ class TestFunctional(unittest.TestCase):
         # print('Energy Ewald', E_v_Evaluator.Energy(rho=rho_ini,ions=mol.ions))
         Enew = E_v_Evaluator.Energy(rho=new_rho,ions=ions)
         print('Energy New', Enew)
+        print('Finished on :', time.strftime("%Y-%m-%d %H:%M:%S",  time.localtime()))
 
 if __name__ == "__main__":
     unittest.main()

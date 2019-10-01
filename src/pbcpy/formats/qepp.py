@@ -1,6 +1,6 @@
 import numpy as np
-from ..grid import DirectGrid
-from ..field import DirectField
+from ..grid import DirectGridHalf
+from ..field import DirectFieldHalf
 from ..system import System
 from ..atom import Atom
 
@@ -20,8 +20,8 @@ class PP(object):
             self.title = filepp.readline()
 
             # nr1x, nr2x, nr3x, nr1, nr2, nr3, nat, ntyp
-            nrx = np.zeros(3, dtype=int)
-            nr = np.zeros(3, dtype=int)
+            nrx = np.empty(3, dtype=int)
+            nr = np.empty(3, dtype=int)
             nrx[0], nrx[1], nrx[2], nr[0], nr[1], nr[2], nat, ntyp = (
                 int(x) for x in filepp.readline().split())
 
@@ -41,7 +41,7 @@ class PP(object):
                 at *= celldm[0]
             else:
                 at = self.celldm2at(ibrav, celldm)
-            grid = DirectGrid(lattice=at, nr=nrx, units=None)
+            grid = DirectGridHalf(lattice=at, nr=nrx, units=None)
 
             # gcutm, dual, ecut, plot_num
             # gcutm, dual, ecut, plot_num = (float(x) for x in filepp.readline().split())
@@ -95,7 +95,7 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = DirectField(grid=grid, griddata_F=ppgrid, rank=1)
+            plot = DirectFieldHalf(grid=grid, griddata_F=ppgrid, rank=1)
 
             return System(atoms, grid, name=self.title, field=plot)
 

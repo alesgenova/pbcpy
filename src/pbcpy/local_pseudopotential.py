@@ -1,6 +1,6 @@
 import numpy as np
 from .atom import Atom
-from .field import DirectField
+from .field import DirectFieldHalf
 
 def NuclearElectron(ions,density,PPs, calcType='Both'):
     '''Computes the local part of the PP
@@ -9,8 +9,8 @@ def NuclearElectron(ions,density,PPs, calcType='Both'):
         raise ValueError("Incorrect number of pseudopotential files")
     if not isinstance(ions,(Atom)):
         raise AttributeError("Ions must be an array of PBCpy Atom")
-    if not isinstance(density,(DirectField)):
-        raise AttributeError("Density must be a PBCpy DirectField")
+    if not isinstance(density,(DirectFieldHalf)):
+        raise AttributeError("Density must be a PBCpy DirectFieldHalf")
     NuclearElectron = ions.local_PP(grid=density.grid,rho=density,PP_file=PPs, calcType=calcType)
     NuclearElectron.name = 'Local Pseudopotential'
     return NuclearElectron
@@ -112,12 +112,16 @@ def NuclearElectronStressPME(ions,rho,EnergyPotential=None, PP_file=None):
     rhoGB = np.conjugate(rhoG) * Barray
     nr = rho.grid.nr
     stress = np.zeros((3, 3))
+    QA = np.empty(nr)
     for key in ions.Zval.keys():
         rhoGBV = rhoGB * ions.Get_PP_Derivative_One(rho.grid, key = key)
-        Qarray = DirectField(grid=rho.grid,griddata_3d=np.zeros_like(q), rank=1)
+        # Qarray = DirectFieldHalf(grid=rho.grid,griddata_3d=np.zeros_like(q), rank=1)
+        QA[:] = 0.0
         for i in range(ions.nat):
             if ions.labels[i] == key :
-                Qarray += ions.Bspline.get_PME_Qarray(i)
+                # Qarray += ions.Bspline.get_PME_Qarray(i)
+                QA = ions.Bspline.get_PME_Qarray(i, QA)
+        Qarray = DirectFieldHalf(grid=rho.grid,griddata_3d=QA, rank=1)
         rhoGBV = rhoGBV * (Qarray.fft())
         for i in range(3):
             for j in range(i, 3):

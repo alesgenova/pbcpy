@@ -72,3 +72,5 @@ class TestFunctional(unittest.TestCase):
         self.assertTrue(np.isclose(energy_ii * Hartree2eV, E_ii, rtol = 1.E-4))
         self.assertTrue(np.isclose(energy_xc * Hartree2eV, E_xc, rtol = 1.E-4))
 
+if __name__ == "__main__":
+    unittest.main()

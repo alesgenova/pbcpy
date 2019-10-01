@@ -1,8 +1,7 @@
 # Collection of local and semilocal functionals
 
 import numpy as np
-from .field import DirectField,ReciprocalField
-from .grid import DirectGrid, ReciprocalGrid
+from .field import DirectFieldHalf,ReciprocalFieldHalf
 from .functional_output import Functional
 from .math_utils import TimeData, PowerInt
 
@@ -10,12 +9,15 @@ def ThomasFermiPotential(rho):
     '''
     The Thomas-Fermi Potential
     '''
-    # TimeData.Begin('TF_pot')
+    TimeData.Begin('TF_pot')
+    factor = (3.0/10.0)*(5.0/3.0)*(3.0*np.pi**2)**(2.0/3.0)
     # pot = np.cbrt(rho*rho)
-    pot = PowerInt(rho, 2, 3)
-    pot *= (3.0/10.0)*(5.0/3.0)*(3.0*np.pi**2)**(2.0/3.0)
-    # t = TimeData.End('TF_pot')
-    # print('t', t, TimeData.cost['TF_pot'], TimeData.number['TF_pot'])
+    # pot = factor * np.cbrt(rho * rho)
+    # pot = rho * rho
+    # pot = np.cbrt(pot, out = pot)
+    # pot = np.multiply(factor, pot, out = pot)
+    pot = rho ** (2.0/3.0) * factor
+    TimeData.End('TF_pot')
     # return (3.0/10.0)*(5.0/3.0)*(3.0*np.pi**2)**(2.0/3.0)*np.abs(rho)**(2.0/3.0)
     return pot
 
@@ -28,8 +30,8 @@ def ThomasFermiEnergy(rho):
     # edens = (3.0/10.0)*(3.0*np.pi**2)**(2.0/3.0)*np.abs(rho)**(5.0/3.0)
     # edens = np.cbrt(rho * rho * rho * rho * rho)
     edens  = PowerInt(rho, 5, 3)
-    ene = np.einsum('ijkl->', edens) * rho.grid.dV
-    ene *= (3.0/10.0)*(3.0*np.pi**2)**(2.0/3.0)
+    ene = np.einsum('ijkl->', edens) 
+    ene *= (3.0/10.0)*(3.0*np.pi**2)**(2.0/3.0)* rho.grid.dV
     return ene
 
 def ThomasFermiStress(rho, EnergyPotential=None):
@@ -53,11 +55,13 @@ def vonWeizsackerPotential(rho,Sigma=0.025):
         return Exception
  
     gg = rho.grid.get_reciprocal().gg
-    sq_dens = np.sqrt(np.real(rho))
+    sq_dens = np.sqrt(rho)
     # n2_sq_dens = -sq_dens.fft()*np.exp(-gg*(Sigma)**2/4.0)*gg
-    n2_sq_dens = -sq_dens.fft()*gg
-    a = -0.5*np.real(n2_sq_dens.ifft())
-    return DirectField(grid=rho.grid,griddata_3d=np.divide(a,sq_dens,out=np.zeros_like(a), where=sq_dens!=0))
+    n2_sq_dens = sq_dens.fft()*gg
+    a = n2_sq_dens.ifft()
+    np.multiply(0.5, a, out = a)
+    return DirectFieldHalf(grid=rho.grid,griddata_3d=np.divide(a,sq_dens,out=a))
+    # return DirectFieldHalf(grid=rho.grid,griddata_3d=np.divide(a,sq_dens,out=np.zeros_like(a), where=sq_dens!=0))
 
 def vonWeizsackerEnergy(rho, Sigma=0.025):
     '''
@@ -66,7 +70,9 @@ def vonWeizsackerEnergy(rho, Sigma=0.025):
     # sq_dens = np.sqrt(rho)
     # edens = 0.5*np.real(np.einsum('ijkl->ijk',sq_dens.gradient()**2))
     # edens = 0.5*np.real(sq_dens.gradient()**2)
-    edens = rho*vonWeizsackerPotential(rho)
+    # edens = rho*vonWeizsackerPotential(rho)
+    edens = vonWeizsackerPotential(rho)
+    np.multiply(rho, edens, out = edens)
     ene = np.einsum('ijkl->', edens) * rho.grid.dV
     return ene
 
@@ -78,12 +84,14 @@ def vonWeizsackerStress(rho, EnergyPotential=None):
     rhoG = rho.fft()
     dRho_ij = []
     stress = np.zeros((3, 3))
+    mask=rho.grid.get_reciprocal().mask
+    mask2 = mask[..., np.newaxis]
     for i in range(3):
         dRho_ij.append((1j * g[..., i][..., np.newaxis] * rhoG).ifft())
     for i in range(3):
         for j in range(i, 3):
             Etmp = -0.25/rho.grid.volume * rho.grid.dV * np.einsum('ijkl -> ', dRho_ij[i] * dRho_ij[j]/rho)
-            stress[i, j]=np.real(Etmp)
+            stress[i, j]=Etmp.real
     return stress
 
 def vW(rho,Sigma=0.025, calcType = 'Both'):

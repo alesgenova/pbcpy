@@ -1,6 +1,6 @@
 from .base import Coord
+from .field import ReciprocalFieldHalf, DirectFieldHalf
 from .field import ReciprocalField, DirectField
-from .grid import DirectGrid, ReciprocalGrid
 from .functional_output import Functional
 from scipy.interpolate import interp1d, splrep, splev
 import numpy as np
@@ -11,7 +11,8 @@ import os
 class Atom(object):
 
     def __init__(self, Z=None, Zval=None, label=None, pos=None, cell=None, \
-            PP_file=None, basis='Cartesian', PME = False, BsplineOrder = 10):
+            PP_file=None, basis='Cartesian', PME = True, BsplineOrder = 10):
+            # PP_file=None, basis='Cartesian', PME = False, BsplineOrder = 10):
         '''
         Atom class handles atomic position, atom type and local pseudo potentials.
         '''
@@ -114,14 +115,14 @@ class Atom(object):
             else :
                 self.Get_PP_Reciprocal(grid,PP_file)
         if self._vreal is None:
-            self._vreal = DirectField(grid=grid,griddata_3d=np.real(self._v.ifft()))
+            self._vreal = DirectFieldHalf(grid=grid,griddata_3d=self._v.ifft())
         ene = pot = 0
         if calcType == 'Energy' :
-            ene = np.einsum('ijkl->', self._vreal * rho) * rho.grid.dV
+            ene = np.einsum('ijkl, ijkl->', self._vreal , rho) * rho.grid.dV
         elif calcType == 'Potential' :
             pot = self._vreal
         else :
-            ene = np.einsum('ijkl->', self._vreal * rho) * rho.grid.dV
+            ene = np.einsum('ijkl, ijkl->', self._vreal , rho) * rho.grid.dV
             pot = self._vreal
         return Functional(name='eN',energy=ene, potential=pot)
 
@@ -129,11 +130,11 @@ class Atom(object):
     def Get_PP_Reciprocal(self,grid,PP_file):   
 
         reciprocal_grid = grid.get_reciprocal()
-        g = reciprocal_grid.g
         q = np.sqrt(reciprocal_grid.gg)
 
-        # self._v = ReciprocalField(reciprocal_grid,griddata_3d=np.zeros_like(q))
-        v = 1j * np.zeros_like(q)
+        # v = 1j * np.zeros_like(q)
+        v = np.zeros_like(q, dtype = np.complex128)
+        vloc = np.empty_like(q)
         for key in PP_file :
             if not os.path.isfile(PP_file[key]):
                 print("PP file not found")
@@ -144,7 +145,7 @@ class Atom(object):
                 self._vp[key] = vp
                 self._alpha_mu[key] = vp[0]
                 vloc_interp = self.interpolate_PP(gp, vp)
-                vloc = np.zeros(np.shape(q))
+                vloc[:] = 0.0
                 # vloc[q<np.max(gp)] = vloc_interp(q[q<np.max(gp)])
                 vloc[q<np.max(gp)] = splev(q[q<np.max(gp)], vloc_interp, der = 0)
                 self._vlines[key] = vloc
@@ -152,7 +153,7 @@ class Atom(object):
                     if self.labels[i] == key :
                         strf = self.strf(reciprocal_grid, i)
                         v += vloc * strf
-        self._v = ReciprocalField(reciprocal_grid,griddata_3d=v)
+        self._v = ReciprocalFieldHalf(reciprocal_grid,griddata_3d=v)
         return "PP successfully interpolated"
 
     def Get_PP_Reciprocal_PME(self,grid,PP_file):   
@@ -160,10 +161,12 @@ class Atom(object):
         self.Bspline = CBspline(ions = self, grid = grid, order = self.BsplineOrder)
 
         reciprocal_grid = grid.get_reciprocal()
-        g = reciprocal_grid.g
         q = np.sqrt(reciprocal_grid.gg)
 
-        v = 1j * np.zeros_like(q)
+        # v = 1j * np.zeros_like(q)
+        v = np.zeros_like(q, dtype = np.complex128)
+        # Qarray = DirectFieldHalf(grid=grid,griddata_3d=np.zeros_like(q), rank=1)
+        QA = np.empty(grid.nr)
         for key in PP_file :
             if not os.path.isfile(PP_file[key]):
                 print("PP file not found")
@@ -178,45 +181,47 @@ class Atom(object):
                 # vloc[q<np.max(gp)] = vloc_interp(q[q<np.max(gp)])
                 vloc[q<np.max(gp)] = splev(q[q<np.max(gp)], vloc_interp, der = 0)
                 self._vlines[key] = vloc
-                Qarray = DirectField(grid=grid,griddata_3d=np.zeros_like(q), rank=1)
+                QA[:] = 0.0
                 for i in range(len(self.pos)):
                     if self.labels[i] == key :
-                        Qarray += self.Bspline.get_PME_Qarray(i)
+                        # Qarray += self.Bspline.get_PME_Qarray(i)
+                        QA = self.Bspline.get_PME_Qarray(i, QA)
+                Qarray = DirectFieldHalf(grid=grid,griddata_3d=QA, rank=1)
                 v = v + vloc * Qarray.fft()
         v = v * self.Bspline.Barray
-        # v = np.conjugate(v)
         v *= grid.nnr / grid.volume
-        self._v = ReciprocalField(reciprocal_grid,griddata_3d=v)
+        self._v = ReciprocalFieldHalf(reciprocal_grid,griddata_3d=v)
         return "PP successfully interpolated"
 
     def Get_PP_Derivative_One(self, grid, key = None):
         reciprocal_grid = grid.get_reciprocal()
         q = np.sqrt(reciprocal_grid.gg)
-        v = 1j * np.zeros_like(q)
         gp = self._gp[key]
         vp = self._vp[key]
         vloc_interp = self.interpolate_PP(gp, vp)
         vloc_deriv = np.zeros(np.shape(q))
         vloc_deriv[q<np.max(gp)] = splev(q[q<np.max(gp)], vloc_interp, der = 1)
-        return ReciprocalField(reciprocal_grid,griddata_3d=vloc_deriv)
+        return ReciprocalFieldHalf(reciprocal_grid,griddata_3d=vloc_deriv)
 
     def Get_PP_Derivative(self, grid, labels = None):
         reciprocal_grid = grid.get_reciprocal()
         q = np.sqrt(reciprocal_grid.gg)
-        v = 1j * np.zeros_like(q)
+        # v = 1j * np.zeros_like(q)
+        v = np.zeros_like(q, dtype = np.complex128)
+        vloc_deriv = np.empty_like(q, dtype = np.complex128)
         if labels is None :
             labels = self._gp.keys()
         for key in labels :
             gp = self._gp[key]
             vp = self._vp[key]
             vloc_interp = self.interpolate_PP(gp, vp)
-            vloc_deriv = np.zeros(np.shape(q))
+            vloc_deriv[:] = 0.0
             vloc_deriv[q<np.max(gp)] = splev(q[q<np.max(gp)], vloc_interp, der = 1)
             for i in range(len(self.pos)):
                 if self.labels[i] == key :
                     strf = self.strf(reciprocal_grid, i)
                     v += vloc_deriv * np.conjugate(strf)
-        return ReciprocalField(reciprocal_grid,griddata_3d=v)
+        return ReciprocalFieldHalf(reciprocal_grid,griddata_3d=v)
 
 
 

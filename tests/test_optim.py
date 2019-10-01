@@ -6,8 +6,7 @@ from pbcpy.functionals import FunctionalClass, TotalEnergyAndPotential
 from pbcpy.constants import LEN_CONV
 from pbcpy.formats.qepp import PP
 from pbcpy.ewald import ewald
-from pbcpy.grid import DirectGrid, ReciprocalGrid
-from pbcpy.field import DirectField, ReciprocalField
+from pbcpy.field import DirectFieldHalf
 
 class TestFunctional(unittest.TestCase):
     def test_optim(self):
@@ -34,7 +33,8 @@ class TestFunctional(unittest.TestCase):
         HARTREE = FunctionalClass(type='HARTREE')
         nnr = mol.cell.nnr
         zerosA = np.zeros(nnr, dtype=float)
-        rho_ini = DirectField(grid=mol.cell, griddata_F=zerosA, rank=1)
+        # rho_ini = DirectFieldHalf(grid=mol.cell, griddata_F=zerosA, rank=1)
+        rho_ini = DirectFieldHalf(grid=mol.cell, griddata_C=zerosA, rank=1)
         charge_total = 0.0
         for i in range(mol.ions.nat) :
             charge_total += mol.ions.Zval[mol.ions.labels[i]]
@@ -54,7 +54,9 @@ class TestFunctional(unittest.TestCase):
         # delta_rho = np.abs(new_rho - mol.field).integral()/2
         # print(delta_rho)
         # print('Energy Ewald', E_v_Evaluator.Energy(rho=rho_ini,ions=mol.ions))
+        print('Calc Energy')
         Enew = E_v_Evaluator.Energy(rho=new_rho,ions=mol.ions)
+        print('Calc Energy of Ref')
         Eref = E_v_Evaluator.Energy(rho=mol.field,ions=mol.ions)
         print('Energy New', Enew)
         print('Energy Ref', Eref)

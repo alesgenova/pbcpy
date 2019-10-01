@@ -2,8 +2,7 @@
 # functional class (output handler) in output
 
 # local imports
-from .grid import DirectGrid, ReciprocalGrid
-from .field import DirectField, ReciprocalField
+from .field import DirectFieldHalf, ReciprocalFieldHalf
 from .functional_output import Functional
 from .semilocal_xc import PBE, LDA, XC, KEDF
 from .local_functionals_utils import TF,vW, x_TF_y_vW
@@ -93,7 +92,7 @@ class FunctionalClass(AbstractFunctional):
 
         Attributes 
         ----------  
-          rho: DirectField
+          rho: DirectFieldHalf
              The input density
 
         Returns
@@ -265,8 +264,8 @@ class TotalEnergyAndPotential(object):
                                  
         if rho is None:
             raise AttributeError('Must define rho')
-        elif not isinstance(rho, DirectField):
-            raise AttributeError('rho must be DirectField')
+        elif not isinstance(rho, DirectFieldHalf):
+            raise AttributeError('rho must be DirectFieldHalf')
         else:
             self.rho = rho
             self.N = self.rho.integral()
@@ -274,8 +273,8 @@ class TotalEnergyAndPotential(object):
     def __call__ (self,phi):
         # call the XC and such... depending on kwargs
         rho_shape = np.shape(self.rho)
-        if not isinstance(phi, DirectField):
-            phi_ = DirectField(self.rho.grid,griddata_3d=np.reshape(phi,rho_shape),rank=1)
+        if not isinstance(phi, DirectFieldHalf):
+            phi_ = DirectFieldHalf(self.rho.grid,griddata_3d=np.reshape(phi,rho_shape),rank=1)
         else:
             phi_ = phi
         rho_ = phi_*phi_
@@ -289,33 +288,25 @@ class TotalEnergyAndPotential(object):
         return  E , final_v_.ravel()
     
     def ComputeEnergyPotential(self,rho, calcType = 'Both'):
-        #import time
-        # t1 = time.time()
-        # self.KineticEnergyFunctional(rho,calcType)
-        # t2 = time.time()
-        # print('KE time', t2 - t1)
-        # self.XCFunctional(rho,calcType) 
-        # t3 = time.time()
-        # print('XC time', t3 - t2)
-        # self.IONS(rho,calcType) 
-        # t4 = time.time()
-        # print('IE time', t4 - t3)
-        # self.HARTREE(rho,calcType)
-        # t5 = time.time()
-        # print('Hart time', t5 - t4)
         Obj = self.KineticEnergyFunctional(rho,calcType)\
                 + self.XCFunctional(rho,calcType) + \
                 self.IONS(rho,calcType) + self.HARTREE(rho,calcType)
+        # if calcType == 'Energy' :
+            # print(self.KineticEnergyFunctional(rho,calcType).energy, 
+                # self.XCFunctional(rho,calcType).energy, 
+                # self.IONS(rho,calcType).energy, 
+                # self.HARTREE(rho,calcType).energy)
         return Obj
 
  
     def Energy(self,rho,ions, usePME = False, calcType = 'Energy'):
         from .ewald import ewald
         ewald_ = ewald(rho=rho,ions=ions, PME = usePME)
-        total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
-                self.XCFunctional.ComputeEnergyPotential(rho,calcType) + \
-                self.HARTREE.ComputeEnergyPotential(rho,calcType) + \
-                self.IONS.ComputeEnergyPotential(rho,calcType)
+        total_e = self.ComputeEnergyPotential(rho, calcType = 'Energy')
+        # total_e=  self.KineticEnergyFunctional.ComputeEnergyPotential(rho,calcType) + \
+                # self.XCFunctional.ComputeEnergyPotential(rho,calcType) + \
+                # self.HARTREE.ComputeEnergyPotential(rho,calcType) + \
+                # self.IONS.ComputeEnergyPotential(rho,calcType)
         return ewald_.energy + total_e.energy
 
 

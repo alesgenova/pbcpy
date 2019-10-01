@@ -1,13 +1,31 @@
 
-FFTLIB = 'numpy'
+### Import fft library
 try:
     import pyfftw
     FFTLIB = 'pyfftw'
 except :
     FFTLIB = 'numpy'
-# FFTLIB = 'numpy'
+FFTLIB = 'numpy'
 
-print('Use %s for Fourier Transform' %(FFTLIB))
+### Import math library
+try:
+    from .src_f.math_f import math_f as mathf
+    MATHLIB = 'math_f2py'
+except Exception as e:
+    try:
+        from . import math_thran as mathf
+        MATHLIB = 'math_thran'
+    except Exception as e:
+        import numpy as mathf
+        MATHLIB = 'numpy'
+# from . import math_thran as mathf
+# MATHLIB = 'math_thran'
+import numpy as mathf
+MATHLIB = 'numpy'
+# from .src_f.math_f import math_f as mathf
+# MATHLIB = 'math_f2py'
+print('Use "%s" for Fourier Transform' %(FFTLIB))
+print('Use "%s" for some mathematical calculations' %(MATHLIB))
 
 LEN_UNITS = ['Bohr', 'Angstrom', 'nm', 'm']
 

@@ -1,8 +1,8 @@
 import numpy as np
 import scipy.special as sp
 from scipy.optimize import minpack2
-from .constants import FFTLIB
 import time
+from .constants import FFTLIB, MATHLIB, mathf
 
 # Global variables
 FFT_Grid = np.zeros(3)
@@ -103,6 +103,7 @@ class TimeObj(object):
             t = time.time() - self.tic[label]
             self.cost[label] += t
         return t
+TimeData = TimeObj()
 
 def PYfft(grid):
     global FFT_Grid, FFT_OBJ
@@ -112,12 +113,14 @@ def PYfft(grid):
         if np.all(nr == FFT_Grid): 
             fft_object = FFT_OBJ
         else :
-            nrc = nr.copy()
-            nrc[-1]= nrc[-1]//2 + 1
+            # nrc = nr.copy()
+            # nrc[-1]= nrc[-1]//2 + 1
+            nrc = grid.nrG
             rA = pyfftw.empty_aligned(tuple(nr), dtype='float64')
             cA = pyfftw.empty_aligned(tuple(nrc), dtype='complex128')
             # print ('Threads:' , multiprocessing.cpu_count())
-            fft_object = pyfftw.FFTW(rA, cA, axes = (0, 1, 2), flags=('FFTW_MEASURE',), direction='FFTW_FORWARD')
+            fft_object = pyfftw.FFTW(rA, cA, axes = (0, 1, 2),\
+                    flags=('FFTW_MEASURE',), direction='FFTW_FORWARD')
             # fft_object = pyfftw.FFTW(rA, cA, axes = (0, 1, 2), flags=('FFTW_MEASURE',), direction='FFTW_FORWARD',threads=4)
             FFT_OBJ = fft_object
             FFT_Grid = nr
@@ -127,32 +130,109 @@ def PYifft(grid):
     global IFFT_Grid, IFFT_OBJ
     if FFTLIB == 'pyfftw' :
         import pyfftw
-        nr = grid.nr
+        nr = grid.nrR
         if np.all(nr == IFFT_Grid): 
             fft_object = IFFT_OBJ
         else :
-            nr = grid.nr
-            nrc = nr.copy()
-            nrc[-1]= nrc[-1]//2 + 1
+            # nrc = nr.copy()
+            # nrc[-1]= nrc[-1]//2 + 1
+            nrc = grid.nr
             rA = pyfftw.empty_aligned(tuple(nr), dtype='float64')
             cA = pyfftw.empty_aligned(tuple(nrc), dtype='complex128')
-            fft_object = pyfftw.FFTW(cA, rA, axes = (0, 1, 2), flags=('FFTW_MEASURE',), direction='FFTW_BACKWARD')
+            fft_object = pyfftw.FFTW(cA, rA, axes = (0, 1, 2), \
+                    flags=('FFTW_MEASURE',), direction='FFTW_BACKWARD')
             IFFT_OBJ = fft_object
             IFFT_Grid= nr
         return fft_object
 
 def PowerInt(x, numerator, denominator = 1):
     y = x.copy()
-    for i in range(numerator - 1):
-        y *= x
-    if denominator == 2 :
-        y = np.sqrt(y)
+    for i in range(numerator-1):
+        np.multiply(y, x, out = y)
+    if denominator == 1 :
+        return y
+    elif denominator == 2 :
+        np.sqrt(y, out = y)
     elif denominator == 3 :
-        y = np.cbrt(y)
+        np.cbrt(y, out = y)
     elif denominator == 4 :
-        y = np.sqrt(np.sqrt(y))
+        np.sqrt(y, out = y)
+        np.sqrt(y, out = y)
     else :
-        y = y ** (1.0/denominator)
+        np.power(y, 1.0/denominator, out = y)
     return y
 
-TimeData = TimeObj()
+def bestFFTsize(N):
+    '''
+    http ://www.fftw.org/fftw3_doc/Complex-DFTs.html#Complex-DFTs
+    "FFTW is best at handling sizes of the form 2^a 3^b 5^c 7^d 11^e 13^f,  where e+f is either 0 or 1,  and the other exponents are arbitrary."
+    '''
+    a = int(np.log2(N)) + 2                                                                                                                      
+    b = int(np.log(N)/np.log(3)) + 2                                                                                                             
+    c = int(np.log(N)/np.log(5)) + 2                                                                                                             
+    d = int(np.log(N)/np.log(7)) + 2                                                                                                             
+    mgrid = np.mgrid[:a, :b, :c, :d].reshape(4, -1)                                                                                              
+    arr0 = 2 ** mgrid[0] * 3 ** mgrid[1] * 5 ** mgrid[2] * 7 ** mgrid[3]
+    arr1=arr0[np.logical_and(arr0>N/14, arr0<1.2*N)]
+    arrAll=[]
+    arrAll.extend(arr1)
+    arrAll.extend(arr1*11)
+    arrAll.extend(arr1*13)
+    arrAll = np.asarray(arrAll)                                                                                                                  
+    # bestN = np.min(arrAll[arrAll > N-1])   
+    bestN = np.min(arrAll[arrAll > 0.99*N])   
+    return bestN
+
+def multiply(arr1, arr2):
+    array1 = arr1
+    array2 = arr2
+    TP = False
+    if MATHLIB == 'math_thran' :
+        if arr1.flags['F_CONTIGUOUS'] and arr2.flags['F_CONTIGUOUS'] :
+            TP = True
+            array1 = arr1.T
+            array2 = arr2.T
+    elif MATHLIB == 'math_f2py' :
+        if not arr1.flags['F_CONTIGUOUS'] and not arr2.flags['F_CONTIGUOUS'] :
+            TP = True
+            array1 = arr1.T
+            array2 = arr2.T
+    results = mathf.multiply(array1, array2)
+    if TP :
+        results = results.T
+    return results
+
+def add(arr1, arr2):
+    array1 = arr1
+    array2 = arr2
+    TP = False
+    if MATHLIB == 'math_thran' :
+        if arr1.flags['F_CONTIGUOUS'] and arr2.flags['F_CONTIGUOUS'] :
+            TP = True
+            array1 = arr1.T
+            array2 = arr2.T
+    elif MATHLIB == 'math_f2py' :
+        if not arr1.flags['F_CONTIGUOUS'] and not arr2.flags['F_CONTIGUOUS'] :
+            TP = True
+            array1 = arr1.T
+            array2 = arr2.T
+    results = mathf.add(array1, array2)
+    if TP :
+        results = results.T
+    return results
+
+def power(arr1, x):
+    array1 = arr1
+    TP = False
+    if MATHLIB == 'math_thran' :
+        if arr1.flags['F_CONTIGUOUS'] :
+            TP = True
+            array1 = arr1.T
+    elif MATHLIB == 'math_f2py' :
+        if not arr1.flags['F_CONTIGUOUS'] :
+            TP = True
+            array1 = arr1.T
+    results = mathf.power(array1, x)
+    if TP :
+        results = results.T
+    return results

@@ -270,3 +270,114 @@ class ReciprocalGrid(BaseGrid, ReciprocalCell):
             direct_lat = np.einsum('ij,j->ij',at,1./scale)
             self.Dgrid=DirectGrid(lattice=direct_lat,nr=self.nr,units=self.units)
         return self.Dgrid
+
+class DirectGridHalf(DirectGrid):
+    def __init__(self, lattice, nr, origin=np.array([0.,0.,0.]), units=None, **kwargs):
+        super().__init__(lattice=lattice, nr=nr, origin=origin, units=units, **kwargs)
+        self._nrG = nr.copy()
+        self._nrG[-1] = self._nrG[-1]//2+1
+
+    @property
+    def nrG(self):
+        return self._nrG
+
+    def get_reciprocal(self,scale=[1.,1.,1.],convention='physics'):
+        """
+            Returns a new ReciprocalCell, the reciprocal cell of self
+            The ReciprocalCell is scaled properly to include
+            the scaled (*self.nr) reciprocal grid points
+            -----------------------------
+            Note1: We need to use the 'physics' convention where bg^T = 2 \pi * at^{-1}
+            physics convention defines the reciprocal lattice to be
+            exp^{i G \cdot R} = 1
+            Now we have the following "crystallographer's" definition ('crystallograph')
+            which comes from defining the reciprocal lattice to be
+            e^{2\pi i G \cdot R} =1
+            In this case bg^T = at^{-1}
+            -----------------------------
+            Note2: We have to use 'Bohr' units to avoid changing hbar value
+        """
+        # TODO define in constants module hbar value for all units allowed
+        if self.RPgrid is None :
+            scale = np.array(scale)
+            fac = 1.0
+            if convention == 'physics' or convention == 'p':
+                fac = 2*np.pi
+            fac = 2*np.pi
+            bg = fac*np.linalg.inv(self.lattice)
+            bg = bg.T
+            #bg = bg/LEN_CONV["Bohr"][self.units]
+            reciprocal_lat = np.einsum('ij,j->ij',bg,scale)
+
+            self.RPgrid = ReciprocalGridHalf(lattice=reciprocal_lat,nr=self.nr,units=self.units)
+        return self.RPgrid
+
+class ReciprocalGridHalf(ReciprocalGrid):
+    def __init__(self, lattice, nr, units=None, **kwargs):
+        nrG = nr.copy()
+        nrG[-1] = nrG[-1]//2 + 1
+        super().__init__(lattice=lattice, nr=nrG, units=units, **kwargs)
+        self._nrR = nr
+
+    def _calc_grid_points(self):
+        if self._g is None:
+            S = np.ndarray(shape=(self.nr[0], self.nr[
+                           1], self.nr[2], 3), dtype=float)
+
+            ax = []
+            for i in range(3):
+                dd=1/self.nrR[i]
+                if i == 2 :
+                    ax.append(np.fft.rfftfreq(self.nrR[i],d=dd))
+                else :
+                    ax.append(np.fft.fftfreq(self.nrR[i],d=dd))
+            S[:,:,:,0], S[:,:,:,1], S[:,:,:,2] = np.meshgrid(ax[0],ax[1],ax[2],indexing='ij')
+
+            S_cart = s2r(S,self)
+            self._g = S_cart
+
+    @property
+    def nrR(self):
+        return self._nrR
+
+    @property
+    def mask(self):
+        if self._mask is None:
+            nr = self.nrR[:3]
+            Dnr = nr[:3]//2
+            Dmod = nr[:3]%2
+            mask = np.ones((nr[0], nr[1], Dnr[2]+1), dtype = bool)
+
+            mask[0, 0, 0] = False
+            mask[0, Dnr[1]+1:, 0] = False
+            mask[Dnr[0]+1:, :, 0] = False
+            if Dmod[2] == 0 :
+                mask[0, 0, Dnr[2]] = False
+                mask[0, Dnr[1]+1:, Dnr[2]] = False
+                mask[Dnr[0]+1:, :, Dnr[2]] = False
+                if Dmod[1] == 0 :
+                    mask[0, Dnr[1], Dnr[2]] = False
+                if Dmod[0] == 0 :
+                    mask[Dnr[0], 0, Dnr[2]] = False
+                    mask[Dnr[0], Dnr[1]+1:, Dnr[2]] = False
+            if Dmod[0] == 0 :
+                mask[Dnr[0], Dnr[1]+1:, 0] = False
+                if Dmod[1] == 0 :
+                    mask[Dnr[0], Dnr[1], 0] = False
+            if Dmod[1] == 0 :
+                mask[0, Dnr[1], 0] = False
+            if all(Dmod == 0):
+                mask[Dnr[0], Dnr[1], Dnr[2]] = False
+            self._mask = mask
+        return self._mask
+
+    def get_direct(self,scale=[1.,1.,1.],convention='physics'):
+        if self.Dgrid is None :
+            scale = np.array(scale)
+            fac = 1.0
+            if convention == 'physics' or convention == 'p':
+                fac = 1./(2*np.pi)
+            at = np.linalg.inv(self.lattice.T*fac)
+            direct_lat = np.einsum('ij,j->ij',at,1./scale)
+            self.Dgrid=DirectGridHalf(lattice=direct_lat,nr=self.nrR,units=self.units)
+        return self.Dgrid

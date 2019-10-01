@@ -1,6 +1,5 @@
 # Class handling output of functional evaluations
-from .grid import DirectGrid, ReciprocalGrid
-from .field import DirectField, ReciprocalField
+from .field import DirectFieldHalf, ReciprocalFieldHalf
 
 # general python imports
 import numpy as np
@@ -17,11 +16,11 @@ class Functional(object):
     energy: float
         The energy
 
-    potential: DirectField
+    potential: DirectFieldHalf
         The first functional derivative of the functional wrt 
         the electron density 
         
-    kernel: ReciprocalField
+    kernel: ReciprocalFieldHalf
         The value of the reciprocal space kernel. This will
         be populated only if the functional is nonlocal
     '''
@@ -37,7 +36,7 @@ class Functional(object):
         if energy is not None:
             self.energy= energy
         if potential is not None:
-            # if isinstance(potential, DirectField):
+            # if isinstance(potential, DirectFieldHalf):
             self.potential = potential
         if kernel is not None:
             if isinstance(kernel, (np.ndarray)):

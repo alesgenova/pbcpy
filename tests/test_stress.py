@@ -6,8 +6,8 @@ from pbcpy.functionals import FunctionalClass, TotalEnergyAndPotential
 from pbcpy.constants import LEN_CONV
 from pbcpy.formats.qepp import PP
 from pbcpy.ewald import ewald
-from pbcpy.grid import DirectGrid, ReciprocalGrid
-from pbcpy.field import DirectField, ReciprocalField
+from pbcpy.grid import DirectGridHalf
+from pbcpy.field import DirectFieldHalf
 
 def test_stress():
     path_pp='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
@@ -33,7 +33,7 @@ def test_stress():
     HARTREE = FunctionalClass(type='HARTREE')
     nnr = mol.cell.nnr
     zerosA = np.zeros(nnr, dtype=float)
-    rho_ini = DirectField(grid=mol.cell, griddata_F=zerosA, rank=1)
+    rho_ini = DirectFieldHalf(grid=mol.cell, griddata_F=zerosA, rank=1)
     charge_total = 0.0
     for i in range(mol.ions.nat) :
         charge_total += mol.ions.Zval[mol.ions.labels[i]]
@@ -66,12 +66,12 @@ def test_stress():
     optional_kwargs = {}
     optional_kwargs["PP_list"] = {'Ga': path_pp+file1,'As': path_pp+file2}
     rho =new_rho
-    # print('WTStress\n', WTStress(rho))
-    # print('LDAStress\n', LDAStress(rho))
-    # print('ThomasFermiStress\n', ThomasFermiStress(rho))
-    # print('vonWeizsackerStress\n', vonWeizsackerStress(rho))
-    # print('NuclearElectronStress\n', NuclearElectronStress(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
-    # print('HartreeFunctionalStress\n', HartreeFunctionalStress(rho))
+    print('WTStress\n', WTStress(rho))
+    print('LDAStress\n', LDAStress(rho))
+    print('ThomasFermiStress\n', ThomasFermiStress(rho))
+    print('vonWeizsackerStress\n', vonWeizsackerStress(rho))
+    print('NuclearElectronStress\n', NuclearElectronStress(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
+    print('HartreeFunctionalStress\n', HartreeFunctionalStress(rho))
     from pbcpy.local_pseudopotential import NuclearElectronForce
     print('IEForce\n', NuclearElectronForce(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
 
