@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize, line_search
 # from scipy.optimize.linesearch import line_search_wolfe1
 from scipy.optimize.linesearch import scalar_search_wolfe1
-from .field import DirectFieldHalf
+from .field import DirectField
 from .math_utils import LineSearchDcsrch,LineSearchDcsrch2
 import time
 
@@ -43,7 +43,7 @@ class Optimization(object):
     EnergyEvaluator: TotalEnergyAndPotential class   
             
 
-    guess_rho: DirectFieldHalf, optional
+    guess_rho: DirectField, optional
             an initial guess for the electron density
 
      Example
@@ -102,7 +102,7 @@ class Optimization(object):
                        method=self.optimization_method,
                        options=self.optimization_options)
         print(res.message)
-        rho = DirectFieldHalf(rho.grid,griddata_3d=np.reshape(res.x**2,np.shape(rho)),rank=1)
+        rho = DirectField(rho.grid,griddata_3d=np.reshape(res.x**2,np.shape(rho)),rank=1)
         self.rho = rho
         return rho
 

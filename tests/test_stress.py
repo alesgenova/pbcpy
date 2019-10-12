@@ -6,8 +6,7 @@ from pbcpy.functionals import FunctionalClass, TotalEnergyAndPotential
 from pbcpy.constants import LEN_CONV
 from pbcpy.formats.qepp import PP
 from pbcpy.ewald import ewald
-from pbcpy.grid import DirectGridHalf
-from pbcpy.field import DirectFieldHalf
+from pbcpy.field import DirectField
 
 def test_stress():
     path_pp='tests/Benchmarks_TOTAL_ENERGY/GaAs_test/OEPP/'
@@ -15,7 +14,8 @@ def test_stress():
     file1='Ga_lda.oe04.recpot'
     file2='As_lda.oe04.recpot'
     rhofile='GaAs_rho_test_1.pp'
-    mol = PP(filepp=path_rho+rhofile).read()
+    # mol = PP(filepp=path_rho+rhofile).read()
+    mol = PP(filepp=path_rho+rhofile).read(full=False)
     optional_kwargs = {}
     optional_kwargs["PP_list"] = {'Ga': path_pp+file1,'As': path_pp+file2}
     optional_kwargs["ions"]    = mol.ions 
@@ -33,7 +33,7 @@ def test_stress():
     HARTREE = FunctionalClass(type='HARTREE')
     nnr = mol.cell.nnr
     zerosA = np.zeros(nnr, dtype=float)
-    rho_ini = DirectFieldHalf(grid=mol.cell, griddata_F=zerosA, rank=1)
+    rho_ini = DirectField(grid=mol.cell, griddata_F=zerosA, rank=1)
     charge_total = 0.0
     for i in range(mol.ions.nat) :
         charge_total += mol.ions.Zval[mol.ions.labels[i]]
@@ -74,6 +74,7 @@ def test_stress():
     print('HartreeFunctionalStress\n', HartreeFunctionalStress(rho))
     from pbcpy.local_pseudopotential import NuclearElectronForce
     print('IEForce\n', NuclearElectronForce(mol.ions, rho, PP_file=optional_kwargs["PP_list"]))
+    print('grid', rho.fft().shape)
 
 if __name__ == "__main__":
     test_stress()

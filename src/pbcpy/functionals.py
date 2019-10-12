@@ -2,13 +2,13 @@
 # functional class (output handler) in output
 
 # local imports
-from .field import DirectFieldHalf, ReciprocalFieldHalf
+from .field import DirectField
 from .functional_output import Functional
 from .semilocal_xc import PBE, LDA, XC, KEDF
 from .local_functionals_utils import TF,vW, x_TF_y_vW
 from .local_pseudopotential import NuclearElectron
 from .hartree import HartreeFunctional
-from .nonlocal_functionals_utils import WT
+from .nonlocal_functionals_utils import WT, LWT
 
 # general python imports
 from abc import ABC, abstractmethod
@@ -92,7 +92,7 @@ class FunctionalClass(AbstractFunctional):
 
         Attributes 
         ----------  
-          rho: DirectFieldHalf
+          rho: DirectField
              The input density
 
         Returns
@@ -168,13 +168,21 @@ class FunctionalClass(AbstractFunctional):
                 polarization = self.optional_kwargs.get('polarization','unpolarized')
                 k_str = optional_kwargs.get('k_str','gga_k_lc94')
                 return KEDF(rho,polarization=polarization,k_str=k_str, calcType=calcType)
-            elif self.name == 'WT':
+            elif self.name == 'WT' or self.name == 'LWT' :
                 Sigma = self.optional_kwargs.get('Sigma',0.025)
                 x = self.optional_kwargs.get('x',1.0)
                 y = self.optional_kwargs.get('y',1.0)
                 alpha = self.optional_kwargs.get('alpha',5.0/6.0)
                 beta = self.optional_kwargs.get('beta',5.0/6.0)
-                return WT(rho=rho,x=x,y=y,Sigma=Sigma, alpha=alpha, beta=beta, calcType=calcType)
+                if self.name == 'WT' :
+                    return WT(rho=rho,x=x,y=y,Sigma=Sigma, alpha=alpha, beta=beta, calcType=calcType)
+                elif self.name == 'LWT' :
+                    nsp = self.optional_kwargs.get('nsp',40)
+                    rhoMin = self.optional_kwargs.get('rhoMin',1E-10)
+                    etaMax = self.optional_kwargs.get('etaMax',10.0)
+                    Neta = self.optional_kwargs.get('Neta',4000)
+                    return LWT(rho=rho,nsp=nsp, rhoMin=rhoMin, x=x,y=y,\
+                            Sigma=Sigma, alpha=alpha, beta=beta, calcType=calcType)
             else :
                 raise Exception(self.name + ' KEDF to be implemented')
             # if self.is_nonlocal == True:
@@ -264,8 +272,8 @@ class TotalEnergyAndPotential(object):
                                  
         if rho is None:
             raise AttributeError('Must define rho')
-        elif not isinstance(rho, DirectFieldHalf):
-            raise AttributeError('rho must be DirectFieldHalf')
+        elif not isinstance(rho, DirectField):
+            raise AttributeError('rho must be DirectField')
         else:
             self.rho = rho
             self.N = self.rho.integral()
@@ -273,8 +281,8 @@ class TotalEnergyAndPotential(object):
     def __call__ (self,phi):
         # call the XC and such... depending on kwargs
         rho_shape = np.shape(self.rho)
-        if not isinstance(phi, DirectFieldHalf):
-            phi_ = DirectFieldHalf(self.rho.grid,griddata_3d=np.reshape(phi,rho_shape),rank=1)
+        if not isinstance(phi, DirectField):
+            phi_ = DirectField(self.rho.grid,griddata_3d=np.reshape(phi,rho_shape),rank=1)
         else:
             phi_ = phi
         rho_ = phi_*phi_

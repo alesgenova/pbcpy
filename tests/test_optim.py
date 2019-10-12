@@ -6,7 +6,7 @@ from pbcpy.functionals import FunctionalClass, TotalEnergyAndPotential
 from pbcpy.constants import LEN_CONV
 from pbcpy.formats.qepp import PP
 from pbcpy.ewald import ewald
-from pbcpy.field import DirectFieldHalf
+from pbcpy.field import DirectField
 
 class TestFunctional(unittest.TestCase):
     def test_optim(self):
@@ -33,8 +33,8 @@ class TestFunctional(unittest.TestCase):
         HARTREE = FunctionalClass(type='HARTREE')
         nnr = mol.cell.nnr
         zerosA = np.zeros(nnr, dtype=float)
-        # rho_ini = DirectFieldHalf(grid=mol.cell, griddata_F=zerosA, rank=1)
-        rho_ini = DirectFieldHalf(grid=mol.cell, griddata_C=zerosA, rank=1)
+        # rho_ini = DirectField(grid=mol.cell, griddata_F=zerosA, rank=1)
+        rho_ini = DirectField(grid=mol.cell, griddata_C=zerosA, rank=1)
         charge_total = 0.0
         for i in range(mol.ions.nat) :
             charge_total += mol.ions.Zval[mol.ions.labels[i]]

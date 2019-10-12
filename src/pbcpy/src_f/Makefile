@@ -3,13 +3,15 @@
 FC = ifort
 PYFC = f2py --fcompiler=intelem # or gnu95
 PYCC = f2py --compiler=intelem # or unix
-OPTS = -O2 #OPTS += -fopenmp  or -qopenmp
+OPTS = -O2 #-qopenmp
+#OPTS = -O2 #OPTS += -fopenmp  or -qopenmp
 #OPTS += -r8 or -fopenmp -fdefault-real-8 -fdefault-double-8
 LOPTS = 
+LOPTS = -liomp5 -lpthread
 # if using OpenMP:
 	#LOPTS = -liomp5 -lpthread or
 	#LOPTS = -lgomp
-export CFLAGS = -O2
+export CFLAGS = -O2 #-fopenmp
 BASE = 
 FUNC = math_f lda_xc
 ALL = $(BASE) $(FUNC)

@@ -9,8 +9,8 @@ from pbcpy.ewald import ewald
 from pbcpy.grid import DirectGrid, ReciprocalGrid
 from pbcpy.field import DirectField, ReciprocalField
 from pbcpy.io.vasp import  read_POSCAR
-from pbcpy.grid import DirectGridHalf
-from pbcpy.field import DirectFieldHalf
+from pbcpy.grid import DirectGrid
+from pbcpy.field import DirectField
 from pbcpy.math_utils import TimeData, bestFFTsize
 
 class TestFunctional(unittest.TestCase):
@@ -36,9 +36,9 @@ class TestFunctional(unittest.TestCase):
         for i in range(3):
             nr[i] = bestFFTsize(nr[i])
         print('The final grid size is ', nr)
-        grid = DirectGridHalf(lattice=lattice, nr=nr, units=None)
+        grid = DirectGrid(lattice=lattice, nr=nr, units=None, full=False)
         zerosA = np.zeros(grid.nnr, dtype=float)
-        rho_ini = DirectFieldHalf(grid=grid, griddata_F=zerosA, rank=1)
+        rho_ini = DirectField(grid=grid, griddata_F=zerosA, rank=1)
         charge_total = 0.0
         for i in range(ions.nat) :
             charge_total += ions.Zval[ions.labels[i]]

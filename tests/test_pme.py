@@ -91,15 +91,16 @@ class TestFunctional(unittest.TestCase):
         file1='Ga_lda.oe04.recpot'
         rhofile='GaAs_rho_test_1.pp'
         ionfile='GaAs_ion_test_1.pp'
-        mol = PP(filepp=path_rho+rhofile).read()
+        # mol = PP(filepp=path_rho+rhofile).read()
+        mol = PP(filepp=path_rho+rhofile).read(full=False)
         Ewald_ = ewald(rho = mol.field, ions = mol.ions, verbose = False)
         Ewald_PME = ewald(rho = mol.field, ions = mol.ions, verbose = False, PME = True)
 
-        # print('Ewald', Ewald_.energy, Ewald_PME.energy)
+        print('Ewald', Ewald_.energy, Ewald_PME.energy)
         self.assertTrue(np.allclose(Ewald_.energy, Ewald_PME.energy, atol = 1.E-5))
-        # print('Ewald_force', Ewald_.forces, Ewald_PME.forces)
+        print('Ewald_force', Ewald_.forces, Ewald_PME.forces)
         self.assertTrue(np.allclose(Ewald_.forces, Ewald_PME.forces, atol = 1.E-5))
-        # print('Ewald_stress', Ewald_.stress, Ewald_PME.stress)
+        print('Ewald_stress', Ewald_.stress, Ewald_PME.stress)
         self.assertTrue(np.allclose(Ewald_.stress, Ewald_PME.stress, atol = 1.E-5))
 
 if __name__ == "__main__":

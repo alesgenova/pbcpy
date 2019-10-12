@@ -3,7 +3,7 @@ from scipy import special as sp
 import sys
 from scipy.spatial.distance import cdist
 
-from .field import DirectFieldHalf, ReciprocalFieldHalf
+from .field import DirectField, ReciprocalField
 #from .functional_output import Functional
 # from .hartree import HartreeFunctional, HartreePotentialReciprocalSpace
 from itertools import product
@@ -50,7 +50,7 @@ class CBspline(object):
                 self._bm = self._calc_bm()
             bm = self._bm
             array = np.einsum('i, j, k -> ijk', bm[0], bm[1], bm[2])
-            self._Barray = ReciprocalFieldHalf(self.grid.get_reciprocal(),griddata_3d=array,rank=1)
+            self._Barray = ReciprocalField(self.grid.get_reciprocal(),griddata_3d=array,rank=1)
         return self._Barray
 
     @property
@@ -126,7 +126,7 @@ class CBspline(object):
             l123A = np.mod(np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA+1, nr.reshape((3, 1)))
             Qarray[l123A[0], l123A[1], l123A[2]] += Mn_multi.reshape(-1)
         TimeData.End('_calc_PME_Qarray')
-        return DirectFieldHalf(self.grid,griddata_3d=Qarray,rank=1)
+        return DirectField(self.grid,griddata_3d=Qarray,rank=1)
 
     def get_PME_Qarray(self, i, Qarray = None):
         '''
@@ -144,18 +144,18 @@ class CBspline(object):
         Mn_multi = np.einsum('i, j, k -> ijk', Mn[0][1:], Mn[1][1:], Mn[2][1:])
         l123A = np.mod(1 + np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA,  nr.reshape((3, 1)))
         Qarray[l123A[0], l123A[1], l123A[2]] += Mn_multi.reshape(-1)
-        # Qarray = DirectFieldHalf(self.grid,griddata_3d=Qarray,rank=1)
+        # Qarray = DirectField(self.grid,griddata_3d=Qarray,rank=1)
         return Qarray
 
 class ewald(object):
 
     def __init__(self, precision=1.0e-8, ions=None, rho=None, verbose=False, BsplineOrder = 10, PME = False, Bspline = None):
         '''
-        This computes Ewald contributions to the energy given a DirectFieldHalf rho.
+        This computes Ewald contributions to the energy given a DirectField rho.
         INPUT: precision  float, should be bigger than the machine precision and 
                           smaller than single precision.
                ions       Atom class array.
-               rho        DirectFieldHalf, the electron density needed to evaluate
+               rho        DirectField, the electron density needed to evaluate
                           the singular parts of the energy.
                verbose    optional, wanna print stuff?
         '''
@@ -448,21 +448,43 @@ class ewald(object):
         # positions = np.asarray(positions)
         positions = self.ions.pos[:]
         charges = np.asarray(charges)
+        PBCmap = np.zeros((2, 3), dtype = np.int32)
+        PBCmap[0, :] = 0
+        PBCmap[1, :] = 2*N[:]+1
+        #PBCmap[0, :] = -N[:]
+        #PBCmap[1, :] = N[:]+1
+        CellBound=np.empty((2, 3))
+        CellBound[0,:] = np.min(self.ions.pos,axis=0)
+        CellBound[1,:] = np.max(self.ions.pos,axis=0)
         for i in range(self.ions.nat):
             posi = self.ions.pos[i].reshape((1, 3))
             LBound = posi - Rcut
             UBound = posi + Rcut
-            PBCmap = np.zeros((2, 3), dtype = np.int32)
-            PBCmap[1, :] = 1
             for j in range(3):
-                if LBound[0, j] < 0 :
-                    PBCmap[0, j] = -N[j]
-                if UBound[0, j] > 1 :
-                    PBCmap[1, j] =  N[j] + 1
+                if LBound[0, j] < CellBound[0,j] : 
+                    PBCmap[1, j] = 2*N[j] + 1
+                else :
+                    PBCmap[1, j] = N[j]+1
+
+                if UBound[0, j] > CellBound[1,j] :
+                    PBCmap[0, j] = 0
+                else :
+                    PBCmap[0, j] = N[j]
+            #for j in range(3):
+            #    if LBound[0, j] < CellBound[0,j] : 
+            #        PBCmap[1, j] = N[j]+1
+            #    else :
+            #        PBCmap[1, j] = 1
+
+            #    if UBound[0, j] > CellBound[1,j] :
+            #        PBCmap[0, j] = -N[j]
+            #    else :
+            #        PBCmap[0, j] = 0
             for i0 in range(PBCmap[0, 0], PBCmap[1, 0]):
                 for i1 in range(PBCmap[0, 1], PBCmap[1, 1]):
                     for i2 in range(PBCmap[0, 2], PBCmap[1, 2]):
-                        PBCpos = posi + Rpbc[i0 + N[0], i1 + N[1], i2 + N[2], :]
+                        #PBCpos = posi + Rpbc[i0 + N[0], i1 + N[1], i2 + N[2], :]
+                        PBCpos = posi + Rpbc[i0, i1, i2, :]
                         LBound = PBCpos - Rcut
                         UBound = PBCpos + Rcut
                         index1 = np.logical_and(positions > LBound, positions < UBound)
@@ -691,6 +713,55 @@ class ewald(object):
                 k += 1
         return S_real
 
+    def Stress_real_fast(self):
+        L=np.sqrt(np.einsum('ij->j',self.rho.grid.lattice**2))
+        prec = sp.erfcinv(self.precision/3.0)
+        rmax = prec / np.sqrt(self.eta)
+        N=np.ceil(rmax/L)
+        charges = []
+        positions = []
+        sum = np.float(0.0)
+        for ix in np.arange(-N[0],N[0]+1):
+            for iy in np.arange(-N[1],N[1]+1):
+                for iz in np.arange(-N[2],N[2]+1):
+                    R=np.einsum('j,ij->i',np.array([ix,iy,iz],dtype=np.float),self.rho.grid.lattice)
+                    for i in np.arange(self.ions.nat):
+                        charges.append(self.ions.Zval[self.ions.labels[i]])
+                        positions.append(self.ions.pos[i]-R)
+        rtol = 0.001
+        Rcut = rmax
+        etaSqrt = np.sqrt(self.eta)
+        charges = np.asarray(charges)
+        S_real = np.zeros((3, 3))
+        piSqrt = np.sqrt(np.pi)
+        positions = np.asarray(positions)
+
+        Stmp = np.zeros(6)
+        for ia in range(self.ions.nat):
+            dists = cdist(positions, self.ions.pos[ia].reshape((1, 3))).reshape(-1)
+            index = np.logical_and(dists < Rcut, dists > rtol)
+            Rijs = np.array(self.ions.pos[ia])-positions[index]
+
+            # Rvv = np.einsum('ij, ik -> ijk', Rijs, Rijs)
+            k = 0
+            Rv = np.zeros((len(Rijs), 6))
+            for i in range(3):
+                for j in range(i, 3):
+                    Rv[:, k] = Rijs[:, i] * Rijs[:, j] / dists[index] ** 2
+                    k += 1
+
+            Stmp +=self.ions.Zval[self.ions.labels[ia]]*np.einsum('i, ij->j', \
+            charges[index]*( 2 * etaSqrt / piSqrt * np.exp(-self.eta * dists[index] ** 2) + \
+                    sp.erfc(etaSqrt*dists[index])/ dists[index] ), Rv)
+
+        Stmp *= -0.5 / self.rho.grid.volume
+        k = 0
+        for i in range(3):
+            for j in range(i, 3):
+                S_real[i, j] = S_real[j, i] = Stmp[k]
+                k += 1
+        return S_real
+
     def Stress_rec(self):
         reciprocal_grid = self.rho.grid.get_reciprocal()
         gg=reciprocal_grid.gg
@@ -764,7 +835,7 @@ class ewald(object):
             Mn_multi = np.einsum('i, j, k -> ijk', self.ions.Zval[self.ions.labels[i]] *  Mn[0][1:], Mn[1][1:], Mn[2][1:])
             l123A = np.mod(np.floor(Up).astype(np.int32).reshape((3, 1)) - ixyzA, nr.reshape((3, 1)))
             Qarray[l123A[0], l123A[1], l123A[2]] += Mn_multi.reshape(-1)
-        return DirectFieldHalf(self.rho.grid,griddata_3d=np.reshape(Qarray,np.shape(self.rho)),rank=1)
+        return DirectField(self.rho.grid,griddata_3d=np.reshape(Qarray,np.shape(self.rho)),rank=1)
 
     def Energy_rec_PME(self):
         TimeData.Begin('Ewald_Energy_Rec_PME')

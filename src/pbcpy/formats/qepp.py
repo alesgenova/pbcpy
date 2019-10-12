@@ -1,6 +1,6 @@
 import numpy as np
-from ..grid import DirectGridHalf
-from ..field import DirectFieldHalf
+from ..grid import DirectGrid
+from ..field import DirectField
 from ..system import System
 from ..atom import Atom
 
@@ -13,7 +13,7 @@ class PP(object):
         self.cutoffvars = {}
         # self.readpp()
 
-    def read(self):
+    def read(self, full=True):
 
         with open(self.filepp) as filepp:
             # title
@@ -41,7 +41,7 @@ class PP(object):
                 at *= celldm[0]
             else:
                 at = self.celldm2at(ibrav, celldm)
-            grid = DirectGridHalf(lattice=at, nr=nrx, units=None)
+            grid = DirectGrid(lattice=at, nr=nrx, units=None, full=full)
 
             # gcutm, dual, ecut, plot_num
             # gcutm, dual, ecut, plot_num = (float(x) for x in filepp.readline().split())
@@ -95,7 +95,7 @@ class PP(object):
                 ppgrid[igrid:igrid + npts] = np.asarray(line, dtype=float)
                 igrid += npts
 
-            plot = DirectFieldHalf(grid=grid, griddata_F=ppgrid, rank=1)
+            plot = DirectField(grid=grid, griddata_F=ppgrid, rank=1)
 
             return System(atoms, grid, name=self.title, field=plot)
 

@@ -3,12 +3,28 @@ import scipy.special as sp
 from scipy.optimize import minpack2
 import time
 from .constants import FFTLIB, MATHLIB, mathf
+if FFTLIB == 'pyfftw' :
+    import pyfftw
 
 # Global variables
-FFT_Grid = np.zeros(3)
-IFFT_Grid = np.zeros(3)
-FFT_OBJ = None
-IFFT_OBJ = None
+# FFT_SAVE = {
+        # 'FFT_Grid' : np.zeros(3), 
+        # 'IFFT_Grid' : np.zeros(3), 
+        # 'FFT_OBJ' : None, 
+        # 'IFFT_OBJ' : None,
+        # 'RFFT_Grid' : np.zeros(3), 
+        # 'RIFFT_Grid' : np.zeros(3), 
+        # 'RFFT_OBJ' : None, 
+        # 'RIFFT_OBJ' : None }
+FFT_SAVE = {
+        'FFT_Grid' : [np.zeros(3), np.zeros(3)],
+        'IFFT_Grid' : [np.zeros(3), np.zeros(3)],
+        'FFT_OBJ' : [None, None], 
+        'IFFT_OBJ' : [None, None]}
+# FFT_Grid = np.zeros(3)
+# IFFT_Grid = np.zeros(3)
+# FFT_OBJ = None
+# IFFT_OBJ = None
 
 def LineSearchDcsrch(func, derfunc, alpha0 = None, func0=None, derfunc0=None,
         c1=1e-4, c2=0.9, amax=1.0, amin=0.0, xtol=1e-14, maxiter = 100):
@@ -105,44 +121,44 @@ class TimeObj(object):
         return t
 TimeData = TimeObj()
 
-def PYfft(grid):
-    global FFT_Grid, FFT_OBJ
+def PYfft(grid, cplx = False, threads = 1):
+    global FFT_SAVE
     if FFTLIB == 'pyfftw' :
-        import pyfftw
         nr = grid.nr
-        if np.all(nr == FFT_Grid): 
-            fft_object = FFT_OBJ
+        if np.all(nr == FFT_SAVE['FFT_Grid'][cplx]):
+            fft_object = FFT_SAVE['FFT_OBJ'][cplx]
         else :
-            # nrc = nr.copy()
-            # nrc[-1]= nrc[-1]//2 + 1
-            nrc = grid.nrG
-            rA = pyfftw.empty_aligned(tuple(nr), dtype='float64')
-            cA = pyfftw.empty_aligned(tuple(nrc), dtype='complex128')
-            # print ('Threads:' , multiprocessing.cpu_count())
+            if cplx :
+                rA = pyfftw.empty_aligned(tuple(nr), dtype='complex128')
+                cA = pyfftw.empty_aligned(tuple(nr), dtype='complex128')
+            else :
+                nrc = grid.nrG
+                rA = pyfftw.empty_aligned(tuple(nr), dtype='float64')
+                cA = pyfftw.empty_aligned(tuple(nrc), dtype='complex128')
             fft_object = pyfftw.FFTW(rA, cA, axes = (0, 1, 2),\
-                    flags=('FFTW_MEASURE',), direction='FFTW_FORWARD')
-            # fft_object = pyfftw.FFTW(rA, cA, axes = (0, 1, 2), flags=('FFTW_MEASURE',), direction='FFTW_FORWARD',threads=4)
-            FFT_OBJ = fft_object
-            FFT_Grid = nr
+                    flags=('FFTW_MEASURE',), direction='FFTW_FORWARD', threads = threads)
+            FFT_SAVE['FFT_Grid'][cplx] = nr
+            FFT_SAVE['FFT_OBJ'][cplx] = fft_object
         return fft_object
 
-def PYifft(grid):
-    global IFFT_Grid, IFFT_OBJ
+def PYifft(grid, cplx = False, threads = 1):
+    global FFT_SAVE
     if FFTLIB == 'pyfftw' :
-        import pyfftw
         nr = grid.nrR
-        if np.all(nr == IFFT_Grid): 
-            fft_object = IFFT_OBJ
+        if np.all(nr == FFT_SAVE['IFFT_Grid'][cplx]):
+            fft_object = FFT_SAVE['IFFT_OBJ'][cplx]
         else :
-            # nrc = nr.copy()
-            # nrc[-1]= nrc[-1]//2 + 1
-            nrc = grid.nr
-            rA = pyfftw.empty_aligned(tuple(nr), dtype='float64')
-            cA = pyfftw.empty_aligned(tuple(nrc), dtype='complex128')
-            fft_object = pyfftw.FFTW(cA, rA, axes = (0, 1, 2), \
-                    flags=('FFTW_MEASURE',), direction='FFTW_BACKWARD')
-            IFFT_OBJ = fft_object
-            IFFT_Grid= nr
+            if cplx :
+                rA = pyfftw.empty_aligned(tuple(nr), dtype='complex128')
+                cA = pyfftw.empty_aligned(tuple(nr), dtype='complex128')
+            else :
+                nrc = grid.nr
+                rA = pyfftw.empty_aligned(tuple(nr), dtype='float64')
+                cA = pyfftw.empty_aligned(tuple(nrc), dtype='complex128')
+                fft_object = pyfftw.FFTW(cA, rA, axes = (0, 1, 2), \
+                        flags=('FFTW_MEASURE',), direction='FFTW_BACKWARD', threads = threads)
+            FFT_SAVE['IFFT_Grid'][cplx] = nr
+            FFT_SAVE['IFFT_OBJ'][cplx] = fft_object
         return fft_object
 
 def PowerInt(x, numerator, denominator = 1):

@@ -1,15 +1,21 @@
 import numpy as np
 import scipy.special as sp
+from scipy.interpolate import splrep
 from .functional_output import Functional
-from .field import ReciprocalFieldHalf, DirectFieldHalf
+from .field import DirectField
 # from .local_functionals_utils import vonWeizsackerEnergy, vonWeizsackerPotential
 # from .local_functionals_utils import ThomasFermiEnergy, ThomasFermiPotential
 from .local_functionals_utils import TF, vW
 from .math_utils import multiply, add, power
+from scipy.interpolate import interp1d, splrep, splev
+from scipy.special import spherical_jn
+try:
+    from numba import njit, jit
+except :
+    pass
 
-
-cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
-KE_kernel_saved ={'Kernel' :None, 'rho0':0.0, 'shape' :None}
+KE_kernel_saved ={'Kernel':None, 'rho0':0.0, 'shape':None, \
+        'KernelTable':None, 'etaMax':None, 'KernelDeriv':None}
 
 def LindhardFunction(eta,lbda,mu):
     '''
@@ -65,7 +71,6 @@ def LindhardFunction(eta,lbda,mu):
                                    ))))))))))))))
         return LindG
 
-
 def LindhardFunction2(eta,lbda,mu):
     '''
     (1) for x -> 0.0
@@ -109,6 +114,14 @@ def LindhardFunction2(eta,lbda,mu):
         LindG[cond2] = 2.0 - 48 * np.abs(eta[cond2] - 1.0) - 3.0 * mu * eta[cond2] ** 2 - lbda
         return LindG
 
+def LindhardFunction3(eta,lbda,mu):
+    if isinstance(eta, (np.ndarray, np.generic)):
+        LindG  = np.zeros_like(eta)
+        LindG = (0.5 + 0.25*(eta**2-1.0)* 
+                    np.log(np.abs(1.0 - eta)/(1.0+eta))/eta)-3.0 * mu * eta**2 - lbda
+
+        return LindG
+
 def LindhardDerivative(eta, mu):
     LindDeriv  = np.zeros_like(eta)
     atol = 1.0E-10
@@ -124,7 +137,6 @@ def LindhardDerivative(eta, mu):
     LindDeriv[cond2] = -48
 
     return LindDeriv * eta
-
 
 def MGP_kernel(q,rho0,LumpFactor,MaxPoints):
         ''' 
@@ -157,54 +169,44 @@ def MGP_kernel(q,rho0,LumpFactor,MaxPoints):
         
         return (tmpker1 + tmpker2 + tmpker3)*cTF #*cTF_WT
 
-
-
 def WT_kernel(q,rho0, x = 1.0, y = 1.0, alpha = 5.0/6.0, beta = 5.0/6.0):
         ''' 
         The WT Kernel
         '''
-        # cTF = np.pi**2/(3.0 * np.pi**2)**(1.0/3.0) #2.87123400018819
-
+        cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
         factor = 5.0 / (9.0 * alpha * beta * rho0 ** (alpha + beta - 5.0/3.0))
         tkf = 2.0 * (3.0 * rho0 * np.pi**2)**(1.0/3.0)
 
-        # return (1.2*LindhardFunction(q/tkf,1.0,1.0))*cTF
-        # return LindhardFunction(q/tkf,x,y)*factor
+        factor *= cTF
         return LindhardFunction2(q/tkf,x,y)*factor
 
 def WTPotential(rho, rho0, Kernel, alpha, beta):
     alphaMinus1 = alpha - 1.0
     betaMinus1 = beta - 1.0
-    # print('111', rho.flags )
-    # print('222', (rho.fft()).flags)
     pot1 = alpha * rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
-    # pot1 = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, beta))
+    # pot1 = DirectField(grid=rho.grid,griddata_3d= power(rho, beta))
     # pot1 = alpha * power(rho, alphaMinus1) * (pot1.fft() * Kernel).ifft(force_real = True)
     if abs(beta - alpha) < 1E-9 :
         pot2 = pot1
     else :
         pot2 = beta * rho ** betaMinus1 * ((rho ** alpha).fft() * Kernel).ifft(force_real = True)
-        # pot2 = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, alpha))
+        # pot2 = DirectField(grid=rho.grid,griddata_3d= power(rho, alpha))
         # pot2 = alpha * power(rho, betaMinus1) * (pot2.fft() * Kernel).ifft(force_real = True)
 
-    return cTF * (pot1 + pot2)
+    return pot1 + pot2
 
 def WTEnergy(rho, rho0, Kernel, alpha, beta):
     rhoBeta = rho ** beta
-    # rhoBeta = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, beta))
     if abs(beta - alpha) < 1E-9 :
         rhoAlpha = rhoBeta
     else :
         rhoAlpha = rho ** alpha
-        # rhoAlpha = DirectFieldHalf(grid=rho.grid,griddata_3d= power(rho, alpha))
     pot1 = (rhoBeta.fft() * Kernel).ifft(force_real = True)
-    pot1 = cTF * (rhoAlpha * pot1)
-    ene = np.einsum('ijkl->', pot1) * rho.grid.dV
+    ene = np.einsum('ijkl, ijkl->', pot1, rhoAlpha) * rho.grid.dV
 
     return ene
 
 def WTStress(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, EnergyPotential=None):
-
     rho0 = np.sum(rho)/np.size(rho)
     g = rho.grid.get_reciprocal().g
     gg = rho.grid.get_reciprocal().gg
@@ -219,12 +221,12 @@ def WTStress(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, Energ
             KE_kernel_saved['shape'] = np.shape(rho)
         else :
             KE_kernel = KE_kernel_saved['Kernel']
-            EnergyPotential = Functional(name='WT')
-            EnergyPotential.energy = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+        EnergyPotential = Functional(name='WT')
+        EnergyPotential.energy = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
     mask = rho.grid.get_reciprocal().mask
     factor = 5.0 / (9.0 * alpha * beta * rho0 ** (alpha + beta - 5.0/3.0))
     tkf = 2.0 * (3.0 * rho0 * np.pi**2)**(1.0/3.0)
-
+    tkf = float(tkf)
     rhoG_A = (rho ** alpha).fft()/ rho.grid.volume
     rhoG_B = np.conjugate((rho ** beta).fft())/ rho.grid.volume
     DDrho = LindhardDerivative(q/tkf, y) * rhoG_A * rhoG_B
@@ -247,10 +249,7 @@ def WTStress(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, Energ
 
     return stress
 
-            
-
 def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, calcType='Both'):
-    
     global KE_kernel_saved
     #Only performed once for each grid
     gg = rho.grid.get_reciprocal().gg
@@ -272,7 +271,10 @@ def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, calcType='B
         pot = WTPotential(rho, rho0, KE_kernel, alpha, beta)
     else :
         pot = WTPotential(rho, rho0, KE_kernel, alpha, beta)
-        ene = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
+        if abs(beta - alpha) < 1E-9 :
+            ene = np.einsum('ijkl, ijkl->', pot, rho) * rho.grid.dV / (2 * alpha)
+        else :
+            ene = WTEnergy(rho, rho0, KE_kernel, alpha, beta)
     # TF_VW = x_TF_y_vW(rho,x=x,y=y,Sigma=Sigma, calcType = calcType)
     xTF = TF(rho, calcType)
     yvW = vW(rho, Sigma, calcType)
@@ -282,4 +284,296 @@ def WT(rho,x=1.0,y=1.0,Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, calcType='B
     OutFunctional = Functional(name='WT')
     OutFunctional.potential = pot
     OutFunctional.energy= ene
+    return OutFunctional
+
+def WT_Kernel_Table(eta, x = 1.0, y = 1.0, alpha = 5.0/6.0, beta = 5.0/6.0):
+    '''
+    Tip : In this version, this is only work for alpha = beta = 5.0/6.0
+    '''
+    # factor =1.2*np.pi**2/(3.0*np.pi**2)**(1.0/3.0)
+    # factor = 5.0 / (9.0 * alpha * beta) * (0.3 * (3.0  *  np.pi ** 2) ** (2.0/3.0)) * 2 * alpha
+    factor =0.4*(3.0*np.pi**2)**(2.0/3.0)
+    return LindhardFunction2(eta,x,y)*factor
+
+def WT_Kernel_Deriv_Table(eta, x = 1.0, y = 1.0, alpha = 5.0/6.0, beta = 5.0/6.0):
+    factor = 5.0 / (9.0 * alpha * beta)
+    cTF = 0.3*(3.0 * np.pi**2)**(2.0/3.0)
+    factor *= cTF
+    return LindhardDerivative(eta,y)*factor
+
+def LWT_kernel(q, rho0, KernelTable, etaMax = 10.0):
+    '''
+    Create the LWT kernel for given rho0 and Kernel Table
+    '''
+    tkf = 2.0*(3.0*np.pi**2*rho0)**(1.0/3.0)
+    eta = q/tkf
+    Kernel = np.empty_like(q)
+    cond0 = eta < etaMax
+    cond1 = np.invert(cond0)
+    limit = splev(etaMax, KernelTable)
+    Kernel[cond0] = splev(eta[cond0], KernelTable)
+    Kernel[cond1] = limit
+    # Kernel[cond0] = KernelTable(eta[cond0])
+    # Kernel[cond1] = KernelTable(etaMax)
+    return Kernel
+
+def LWTPotential(rho, KE_kernel_func, nsp = 40, rhoMin = 1E-15, x=1.0,y=1.0, \
+        Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0):
+
+    nsp = 3
+    Potential = np.empty_like(rho)
+    tol = 1E-14
+    alphaMinus1 = alpha - 1.0
+    betaMinus1 = beta - 1.0
+    rhoMax = np.max(rho) + tol
+    rhoAve = np.mean(rho)
+    if rhoMin is None :
+        rhoMin = rhoAve
+    # rhoMin = np.mean(rho)
+    step = (rhoMax - rhoMin)/(nsp - 1)
+    # PotList = []
+    # store difference rho0 corresponding Potential
+    rho0 = rhoMin
+    nr = rho.grid.nr
+    q = rho.grid.get_reciprocal().q
+    Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+            etaMax = KE_kernel_func['etaMax'])
+    pot1 = rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    # PotList.append(pot1)
+    mask1 = rho < rho0 + tol
+    Potential[mask1] = pot1[mask1]
+    mask2 = mask1
+    nr2 = *nr, 3
+    potA = np.empty(nr2)
+    potA[..., 0] = pot1[..., 0]
+    ip = 0
+    for i in range(1, nsp):
+        # print('i', i)
+        rho0 += step
+        ip += 1
+        Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+                etaMax = KE_kernel_func['etaMax'])
+        pot1 = rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+        if ip < 3 :
+            potA[..., ip] = pot1[..., 0]
+            rhoD = [rho0 - i * step for i in range(ip, -1, -1)]
+        else :
+            potA[..., 0] = potA[..., 1]
+            potA[..., 1] = potA[..., 2]
+            potA[..., 2] = pot1[..., 0]
+            rhoD = [rho0 - 2 * step, rho0 - step, rho0]
+        mask1 = np.invert(mask2)
+        mask2 = rho < rho0
+        mask = np.logical_and(mask1, mask2)
+        # Potential[mask] = potA[mask[..., 0], 1]
+        if ip < 3 :
+            ib = ip + 1
+        else :
+            ib = 3
+        # Potential = PotentialSpline(rhoD, potA, rho, Potential, mask, ib = 3)
+        for i0 in range(nr[0]):
+            for i1 in range(nr[1]):
+                for i2 in range(nr[2]):
+                    if mask[i0, i1, i2] :
+                        f = interp1d(rhoD, potA[i0, i1, i2, :ib], kind = 1)
+                        Potential[i0, i1, i2] = f(rho[i0, i1, i2])
+
+    # Kernel = LWT_kernel(q, rhoAve, KernelTable = KE_kernel_func['KernelTable'],\
+            # etaMax = KE_kernel_func['etaMax'])
+    # Potential = rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    return DirectField(grid=rho.grid,griddata_3d = Potential)
+
+def LWTPotential2(rho, KE_kernel_func, nsp = 40, rhoMin = 1E-10, x=1.0,y=1.0, \
+        Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0):
+
+    Potential = np.empty_like(rho)
+    tol = 1E-14
+    alphaMinus1 = alpha - 1.0
+    betaMinus1 = beta - 1.0
+    rhoMax = np.max(rho) + tol
+    rhoAve = np.mean(rho)
+    if rhoMin is None :
+        rhoMin = rhoAve
+    rhoMin = rhoAve
+    step = (rhoMax - rhoMin)/(nsp - 1)
+    nr = rho.grid.nr
+    q = rho.grid.get_reciprocal().q
+    nr2 = *nr, 3
+    potA = np.empty(nr2)
+    #-----------------------------------------------------------------------
+    rho0 = rhoMin
+    Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+            etaMax = KE_kernel_func['etaMax'])
+    pot1 = rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    mask1 = rho < rho0 + tol
+    Potential[mask1] = pot1[mask1]
+    Potential[rho < tol] = 0.0
+    mask2 = mask1
+    #-----------------------------------------------------------------------
+    potA[..., 0] = pot1[..., 0]
+    ip = 0
+    for i in range(1, nsp):
+        rho0 += step
+        ip += 1
+        Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+                etaMax = KE_kernel_func['etaMax'])
+        pot1 = rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+        if ip < 3 :
+            potA[..., ip] = pot1[..., 0]
+            rhoD = [rho0 - i * step for i in range(ip, -1, -1)]
+        else :
+            potA[..., 0] = potA[..., 1]
+            potA[..., 1] = potA[..., 2]
+            potA[..., 2] = pot1[..., 0]
+            rhoD = [rho0 - 2 * step, rho0 - step, rho0]
+        mask1 = np.invert(mask2)
+        mask2 = rho < rho0
+        mask = np.logical_and(mask1, mask2)
+        if not np.any(mask) : continue
+        potIni = potA[mask[..., 0], :]
+        potSpline = np.empty(potIni.shape[:-1])
+        rhoL = rho[mask]
+        if ip < 3 :
+            ib = ip + 1
+        else :
+            ib = 3
+        k = ib - 1
+        for i in range(np.size(potSpline)):
+            f = interp1d(rhoD, potIni[i, :ib], kind = k)
+            potSpline[i] = f(rhoL[i])
+        Potential[mask] = potSpline
+
+    # Kernel = LWT_kernel(q, rhoAve, KernelTable = KE_kernel_func['KernelTable'],\
+            # etaMax = KE_kernel_func['etaMax'])
+    # Potential = rho ** alphaMinus1 * ((rho ** beta).fft() * Kernel).ifft(force_real = True)
+    return DirectField(grid=rho.grid,griddata_3d = Potential)
+
+def LWTPotentialEnergy(rho, KE_kernel_func, nsp = 40, rhoMin = 1E-10, x=1.0,y=1.0, \
+        Sigma=0.025, alpha = 5.0/6.0, beta = 5.0/6.0, calcType = 'Both'):
+
+    Potential = np.empty_like(rho)
+    tol = 1E-14
+    alphaMinus1 = alpha - 1.0
+    betaMinus1 = beta - 1.0
+    rhoMax = np.max(rho) + tol
+    rhoAve = np.mean(rho)
+    if rhoMin is None :
+        rhoMin = rhoAve
+    rhoMin = rhoAve
+    step = (rhoMax - rhoMin)/(nsp - 1)
+    nr = rho.grid.nr
+    q = rho.grid.get_reciprocal().q
+    nr2 = *nr, 3
+    potA = np.empty(nr2)
+    potA[..., 0] = 0.0
+    rhoAlpha1 = rho ** alphaMinus1
+    rhoBeta = rho ** beta
+    rhoBetaG = rhoBeta.fft()
+    #-----------------------------------------------------------------------
+    rho0 = rhoMin * 0.5
+    Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+            etaMax = KE_kernel_func['etaMax'])
+    pot1 = rhoAlpha1 * (rhoBetaG * Kernel).ifft(force_real = True)
+    potA[..., 1] = pot1[..., 0]
+    rho0 = rhoMin
+    Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+            etaMax = KE_kernel_func['etaMax'])
+    pot1 = rhoAlpha1 * (rhoBetaG * Kernel).ifft(force_real = True)
+    potA[..., 2] = pot1[..., 0]
+    mask1 = rho < rho0
+    mask = mask1
+    rhoD = [0.0, 0.5 * rho0, rho0]
+    potIni = potA[mask[..., 0], :]
+    potSpline = np.empty(potIni.shape[:-1])
+    rhoL = rho[mask]
+    Potential[mask] = potA[mask[..., 0], 1]
+    # for i in range(np.size(potSpline)):
+        # f = interp1d(rhoD, potIni[i, :], kind = 2)
+        # potSpline[i] = f(rhoL[i])
+    # Potential[mask] = potSpline
+    mask2 = mask1
+    #-----------------------------------------------------------------------
+    ip = 0
+    for i in range(1, nsp):
+        rho0 += step
+        ip += 1
+        Kernel = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelTable'],\
+                etaMax = KE_kernel_func['etaMax'])
+        pot1 = rhoAlpha1 * (rhoBetaG * Kernel).ifft(force_real = True)
+        potA[..., 0] = potA[..., 1]
+        potA[..., 1] = potA[..., 2]
+        potA[..., 2] = pot1[..., 0]
+        if ip  == 1 :
+            rhoD = [(rho0 - step) * 0.5, rho0 - step, rho0]
+        else :
+            rhoD = [rho0 - 2 * step, rho0 - step, rho0]
+        mask1 = np.invert(mask2)
+        mask2 = rho < rho0
+        mask = np.logical_and(mask1, mask2)
+        if not np.any(mask) : continue
+        potIni = potA[mask[..., 0], :]
+        potSpline = np.empty(potIni.shape[:-1])
+        rhoL = rho[mask]
+        for i in range(np.size(potSpline)):
+            f = interp1d(rhoD, potIni[i, :], kind = 2)
+            potSpline[i] = f(rhoL[i])
+        Potential[mask] = potSpline
+
+    ############################## Kernel Part ##############################
+    OutFunctional = Functional(name='LWT')
+    OutFunctional.potential = 0.0
+    OutFunctional.energy= 0.0
+    if calcType == 'Energy' or calcType == 'Both' :
+        ene = 3.0/5.0 * np.einsum('ijkl, ijkl ->', Potential, rho) * rho.grid.dV
+    if calcType == 'Potential' or calcType == 'Both' :
+        if abs(beta - alpha) < 1E-9 :
+            rhoAlpha = rhoBeta
+        else :
+            rhoAlpha = rho ** alpha
+        rho0 = np.mean(rho)
+        KernelDeriv = LWT_kernel(q, rho0, KernelTable = KE_kernel_func['KernelDeriv'],\
+                etaMax = KE_kernel_func['etaMax'])
+        pot1 = 1.0/3 * rhoAlpha1 * ((rhoBetaG * KernelDeriv).ifft(force_real = True))
+        Potential += pot1
+        pot = DirectField(grid=rho.grid,griddata_3d = Potential)
+        OutFunctional.potential = pot
+    return OutFunctional
+
+def LWT(rho, nsp = 40, rhoMin = 1E-15, x=1.0,y=1.0, Sigma=0.025, \
+        alpha = 5.0/6.0, beta = 5.0/6.0, etaMax = 10, Neta = 4000, order = 3, calcType='Both'):
+    global KE_kernel_saved
+    etaMax = 40.0
+    #Only performed once for each grid
+    gg = rho.grid.get_reciprocal().gg
+    rho0 = np.mean(rho)
+    if abs(KE_kernel_saved['rho0']-rho0) > 1E-6 or np.shape(rho) != KE_kernel_saved['shape'] :
+        print('rho0', rho0)
+        print('Re-calculate KernelTable')
+        eta = np.linspace(0, etaMax, Neta)
+        KernelTable = WT_Kernel_Table(eta, x, y, alpha, beta)
+        KernelDerivTable = WT_Kernel_Deriv_Table(eta, x, y, alpha, beta)
+        KE_kernel_saved['KernelTable'] = splrep(eta, KernelTable, k=order)
+        KE_kernel_saved['KernelDeriv'] = splrep(eta, KernelDerivTable, k=order)
+        KE_kernel_saved['etaMax'] = etaMax
+        KE_kernel_saved['shape'] = np.shape(rho)
+        KE_kernel_saved['rho0'] = rho0
+    KE_kernel_func = KE_kernel_saved
+
+    # pot = LWTPotential(rho, KE_kernel_func, nsp, rhoMin, x, y, Sigma, alpha, beta)
+    # pot = LWTPotential3(rho, KE_kernel_func, nsp, rhoMin, x, y, Sigma, alpha, beta)
+    # if calcType == 'Energy' :
+        # ene = 3.0/5.0 * np.einsum('ijkl, ijkl ->', pot, rho) * rho.grid.dV
+        # pot = 0
+    # elif calcType == 'Potential' :
+        # ene = 0
+    # else :
+        # ene = 3.0/5.0 * np.einsum('ijkl, ijkl ->', pot, rho) * rho.grid.dV
+        
+    # TF_VW = x_TF_y_vW(rho,x=x,y=y,Sigma=Sigma, calcType = calcType)
+    OutFunctional = LWTPotentialEnergy(rho, KE_kernel_func, nsp, \
+            rhoMin, x, y, Sigma, alpha, beta, calcType = calcType)
+    xTF = TF(rho, calcType)
+    yvW = vW(rho, Sigma, calcType)
+    OutFunctional.potential += x * xTF.potential + y * yvW.potential
+    OutFunctional.energy += x * xTF.energy + y * yvW.energy
     return OutFunctional

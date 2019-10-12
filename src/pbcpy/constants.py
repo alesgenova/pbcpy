@@ -5,25 +5,26 @@ try:
     FFTLIB = 'pyfftw'
 except :
     FFTLIB = 'numpy'
-FFTLIB = 'numpy'
+# FFTLIB = 'numpy'
 
 ### Import math library
-try:
-    from .src_f.math_f import math_f as mathf
-    MATHLIB = 'math_f2py'
-except Exception as e:
-    try:
-        from . import math_thran as mathf
-        MATHLIB = 'math_thran'
-    except Exception as e:
-        import numpy as mathf
-        MATHLIB = 'numpy'
+# try:
+    # from .src_f.math_f import math_f as mathf
+    # MATHLIB = 'math_f2py'
+# except Exception as e:
+    # try:
+        # from . import math_thran as mathf
+        # MATHLIB = 'math_thran'
+    # except Exception as e:
+        # import numpy as mathf
+        # MATHLIB = 'numpy'
+# from .src_f.math_f import math_f as mathf
+# MATHLIB = 'math_f2py'
 # from . import math_thran as mathf
 # MATHLIB = 'math_thran'
 import numpy as mathf
 MATHLIB = 'numpy'
-# from .src_f.math_f import math_f as mathf
-# MATHLIB = 'math_f2py'
+
 print('Use "%s" for Fourier Transform' %(FFTLIB))
 print('Use "%s" for some mathematical calculations' %(MATHLIB))
 

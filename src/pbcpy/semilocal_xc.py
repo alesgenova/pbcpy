@@ -1,9 +1,10 @@
 # Drivers for LibXC
 
 import numpy as np
-from .field import DirectFieldHalf
+from .field import DirectField
 from .functional_output import Functional
 from .constants import MATHLIB
+from .math_utils import TimeData
 ### Import LibXC
 try:
     from pylibxc.functional import LibXCFunctional
@@ -19,8 +20,8 @@ if MATHLIB == 'math_f2py' :
         pass
 
 def Get_LibXC_Input(density,do_sigma=True):
-    if not isinstance(density,(DirectFieldHalf)):
-        raise TypeError("density must be a PBCpy DirectFieldHalf")
+    if not isinstance(density,(DirectField)):
+        raise TypeError("density must be a PBCpy DirectField")
     if density.rank != 1:
         raise AttributeError("Wrong rank")
     dim=np.shape(np.shape(density))[0]
@@ -68,20 +69,20 @@ def Get_LibXC_Output(out,density, calcType = 'Both'):
         edens = out["zk"].reshape(np.shape(density))
 
     if "vrho" in out.keys():
-        vrho = DirectFieldHalf(density.grid,rank=1,griddata_3d=out["vrho"].reshape(np.shape(density)))
+        vrho = DirectField(density.grid,rank=1,griddata_3d=out["vrho"].reshape(np.shape(density)))
 
     if "vsigma" in out.keys():
-        vsigma = DirectFieldHalf(density.grid,griddata_3d=out["vsigma"].reshape(np.shape(density)))
+        vsigma = DirectField(density.grid,griddata_3d=out["vsigma"].reshape(np.shape(density)))
 
     ene = pot = 0
     if not do_sigma:
         if calcType == 'Energy' :
             ene = np.einsum('ijkl, ijkl->',edens,density) * density.grid.dV
         elif calcType == 'Potential' :
-            pot = DirectFieldHalf(density.grid,rank=1,griddata_3d=vrho)
+            pot = DirectField(density.grid,rank=1,griddata_3d=vrho)
         else :
             ene = np.einsum('ijkl, ijkl->',edens,density) * density.grid.dV
-            pot = DirectFieldHalf(density.grid,rank=1,griddata_3d=vrho)
+            pot = DirectField(density.grid,rank=1,griddata_3d=vrho)
     else:
         grho = density.gradient(flag='supersmooth')
         # rho_3 = grho.copy()
@@ -103,10 +104,10 @@ def Get_LibXC_Output(out,density, calcType = 'Both'):
         if calcType == 'Energy' :
             ene = np.real(np.einsum('ijkl->',edens*density)) * density.grid.dV
         elif calcType == 'Potential' :
-            pot = DirectFieldHalf(density.grid,rank=1,griddata_3d=np.real(v))
+            pot = DirectField(density.grid,rank=1,griddata_3d=np.real(v))
         else :
             ene = np.real(np.einsum('ijkl->',edens*density)) * density.grid.dV
-            pot = DirectFieldHalf(density.grid,rank=1,griddata_3d=np.real(v))
+            pot = DirectField(density.grid,rank=1,griddata_3d=np.real(v))
 
     OutFunctional.energy = ene
     OutFunctional.potential = pot
@@ -118,7 +119,7 @@ def XC(density,x_str,c_str,polarization, do_sigma = True, calcType = 'Both'):
      Output: 
         - Functional_XC: a PBCpy XC functional evaluated with LibXC
      Input:
-        - density: a DirectFieldHalf (rank=1)
+        - density: a DirectField (rank=1)
         - x_str,c_str: strings like "gga_x_pbe" and "gga_c_pbe"
         - polarization: string like "polarized" or "unpolarized"
     '''
@@ -128,8 +129,8 @@ def XC(density,x_str,c_str,polarization, do_sigma = True, calcType = 'Both'):
         raise AttributeError("x_str and c_str must be LibXC functionals. Check pylibxc.util.xc_available_functional_names()")
     if not isinstance(polarization, str):
         raise AttributeError("polarization must be a ``polarized`` or ``unpolarized``")
-    if not isinstance(density,(DirectFieldHalf)):
-        raise AttributeError("density must be a rank-1 PBCpy DirectFieldHalf")
+    if not isinstance(density,(DirectField)):
+        raise AttributeError("density must be a rank-1 PBCpy DirectField")
     func_x = LibXCFunctional(x_str, polarization)
     func_c = LibXCFunctional(c_str, polarization)
     # inp=Get_LibXC_Input(density, do_sigma = False)
@@ -160,7 +161,7 @@ def KEDF(density,polarization,k_str='gga_k_lc94', calcType = 'Both'):
      Output: 
         - Functional_KEDF: a PBCpy KEDF functional evaluated with LibXC
      Input:
-        - density: a DirectFieldHalf (rank=1)
+        - density: a DirectField (rank=1)
         - k_str: strings like "gga_k_lc94"
         - polarization: string like "polarized" or "unpolarized"
     '''
@@ -168,8 +169,8 @@ def KEDF(density,polarization,k_str='gga_k_lc94', calcType = 'Both'):
         raise AttributeError("k_str must be a LibXC functional. Check pylibxc.util.xc_available_functional_names()")
     if not isinstance(polarization, str):
         raise AttributeError("polarization must be a ``polarized`` or ``unpolarized``")
-    if not isinstance(density,(DirectFieldHalf)):
-        raise AttributeError("density must be a rank-1 PBCpy DirectFieldHalf")
+    if not isinstance(density,(DirectField)):
+        raise AttributeError("density must be a rank-1 PBCpy DirectField")
     func_k = LibXCFunctional(k_str, polarization)
     inp=Get_LibXC_Input(density)
     out_k = func_k.compute(inp)
@@ -188,13 +189,14 @@ def LDA_F(rho, polarization, calcType = 'Both'):
         ene = f2pylda.lda_xc_f_energy(rhoF)
     if 'Potential'in calcType :
         pot = f2pylda.lda_xc_f_potential(rhoF)
-        pot = DirectFieldHalf(rho.grid,rank=1,griddata_F=pot)
+        pot = DirectField(rho.grid,rank=1,griddata_F=pot)
     OutFunctional = Functional(name='XC')
     OutFunctional.energy = ene * rho.grid.dV
     OutFunctional.potential = pot
     return OutFunctional
 
 def LDA(rho, polarization, calcType = 'Both'):
+    TimeData.Begin('LDA')
     # return LDA_XC(rho,polarization, calcType)
     if MATHLIB == 'math_f2py' :
         return LDA_F(rho,polarization, calcType)
@@ -266,15 +268,18 @@ def LDA(rho, polarization, calcType = 'Both'):
     OutFunctional = Functional(name='XC')
     OutFunctional.energy = ene
     OutFunctional.potential = pot
+    TimeData.End('LDA')
     return OutFunctional
 
 def LDAStress(rho, polarization='unpolarized', EnergyPotential=None):
+    TimeData.Begin('LDA_Stress')
     if EnergyPotential is None :
         EnergyPotential = LDA(rho, polarization, calcType = 'Both')
     stress = np.zeros((3, 3))
     Etmp = EnergyPotential.energy - np.einsum('ijkl, ijkl -> ', EnergyPotential.potential, rho) * rho.grid.dV
     for i in range(3):
         stress[i, i]= Etmp / rho.grid.volume
+    TimeData.End('LDA_Stress')
     return stress
 
 # def LDA_thran(rho, polarization, calcType = 'Both'):
@@ -282,6 +287,6 @@ def LDAStress(rho, polarization='unpolarized', EnergyPotential=None):
     # ene = ene * rho.grid.dV
     # OutFunctional = Functional(name='XC')
     # OutFunctional.energy = ene
-    # pot = DirectFieldHalf(rho.grid,rank=1,griddata_C=pot)
+    # pot = DirectField(rho.grid,rank=1,griddata_C=pot)
     # OutFunctional.potential = pot
     # return OutFunctional

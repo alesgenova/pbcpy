@@ -6,8 +6,8 @@ from pbcpy.functionals import FunctionalClass, TotalEnergyAndPotential
 from pbcpy.constants import LEN_CONV
 from pbcpy.formats.qepp import PP
 from pbcpy.ewald import ewald
-from pbcpy.grid import DirectGridHalf
-from pbcpy.field import DirectFieldHalf
+from pbcpy.grid import DirectGrid
+from pbcpy.field import DirectField
 from pbcpy.io.vasp import  read_POSCAR
 import time
 
@@ -29,10 +29,11 @@ class TestFunctional(unittest.TestCase):
         for i in range(3):
             nr[i] = int(np.sqrt(metric[i, i])/gap)
         print('The grid size is ', nr)
-        grid = DirectGridHalf(lattice=lattice, nr=nr, units=None)
+        grid = DirectGrid(lattice=lattice, nr=nr, units=None)
+        # grid = DirectGrid(lattice=lattice, nr=nr, units=None, full=False)
         zerosA = np.zeros(grid.nnr, dtype=float)
-        # rho_ini = DirectFieldHalf(grid=grid, griddata_F=zerosA, rank=1)
-        rho_ini = DirectFieldHalf(grid=grid, griddata_C=zerosA, rank=1)
+        # rho_ini = DirectField(grid=grid, griddata_F=zerosA, rank=1)
+        rho_ini = DirectField(grid=grid, griddata_C=zerosA, rank=1)
         charge_total = 0.0
         for i in range(ions.nat) :
             charge_total += ions.Zval[ions.labels[i]]
