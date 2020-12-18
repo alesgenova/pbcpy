@@ -1,4 +1,4 @@
-<b>PbcPy is no longer under active development. Please use to its fork [DFTpy](https://gitlab.com/pavanello-research-group/dftpy) instead, which is mantained by the Pavanello Research Group and has many additional features.</b>
+<b>PbcPy is no longer under active development. Please use its fork [DFTpy](https://gitlab.com/pavanello-research-group/dftpy) instead, which is mantained by the Pavanello Research Group and has many additional features.</b>
 
 # PbcPy
 
